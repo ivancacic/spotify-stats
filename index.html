@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Play History Stats</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="error-banner" class="error-banner hidden"></div>
+
+  <main id="login-screen" class="screen">
+    <div class="login-card">
+      <h1>🎧 Play History Stats</h1>
+      <p>Connect your Spotify account to see stats on your recently played tracks, top artists, top tracks, audio features, and favorite genres.</p>
+
+      <label for="client-id-input">Spotify Client ID</label>
+      <input id="client-id-input" type="text" placeholder="Paste your Spotify app's Client ID" autocomplete="off">
+
+      <div class="redirect-uri-box">
+        <label>Redirect URI to register in your Spotify app settings</label>
+        <div class="copy-row">
+          <code id="redirect-uri-display"></code>
+          <button id="copy-redirect-uri" type="button" class="secondary-button small">Copy</button>
+        </div>
+      </div>
+
+      <button id="login-button" class="primary-button">Connect with Spotify</button>
+
+      <p class="hint">Need a Client ID? Create a free app at the <a href="https://developer.spotify.com/dashboard" target="_blank" rel="noopener">Spotify Developer Dashboard</a>. See the README in this folder for step-by-step setup.</p>
+    </div>
+  </main>
+
+  <main id="app-screen" class="screen hidden">
+    <header class="app-header">
+      <div class="user-info">
+        <img id="user-avatar" class="avatar hidden" alt="">
+        <span id="user-name"></span>
+      </div>
+      <button id="logout-button" class="secondary-button small">Log out</button>
+    </header>
+
+    <nav class="tabs">
+      <button class="tab-button active" data-tab="recent">Recently Played</button>
+      <button class="tab-button" data-tab="top-tracks">Top Tracks</button>
+      <button class="tab-button" data-tab="top-artists">Top Artists</button>
+      <button class="tab-button" data-tab="audio-features">Audio Features</button>
+      <button class="tab-button" data-tab="genres">Genres</button>
+    </nav>
+
+    <section id="panel-recent" class="tab-panel active">
+      <div class="panel-header">
+        <h2>Recently Played</h2>
+        <button id="refresh-recent" class="secondary-button small">Refresh</button>
+      </div>
+      <div class="stat-grid">
+        <div class="stat-card"><span class="stat-value" id="recent-count">–</span><span class="stat-label">Tracks fetched</span></div>
+        <div class="stat-card"><span class="stat-value" id="recent-top-artist">–</span><span class="stat-label">Most played artist</span></div>
+        <div class="stat-card"><span class="stat-value" id="recent-span">–</span><span class="stat-label">Time span covered</span></div>
+      </div>
+      <h3>Listening by hour of day</h3>
+      <div id="recent-hour-chart" class="bar-chart"></div>
+      <h3>Track list</h3>
+      <ul id="recent-list" class="track-list"></ul>
+    </section>
+
+    <section id="panel-top-tracks" class="tab-panel">
+      <div class="panel-header">
+        <h2>Top Tracks</h2>
+        <select id="top-tracks-range" class="range-select">
+          <option value="short_term">Last 4 weeks</option>
+          <option value="medium_term" selected>Last 6 months</option>
+          <option value="long_term">All time</option>
+        </select>
+      </div>
+      <ul id="top-tracks-list" class="track-list ranked"></ul>
+    </section>
+
+    <section id="panel-top-artists" class="tab-panel">
+      <div class="panel-header">
+        <h2>Top Artists</h2>
+        <select id="top-artists-range" class="range-select">
+          <option value="short_term">Last 4 weeks</option>
+          <option value="medium_term" selected>Last 6 months</option>
+          <option value="long_term">All time</option>
+        </select>
+      </div>
+      <ul id="top-artists-list" class="artist-list ranked"></ul>
+    </section>
+
+    <section id="panel-audio-features" class="tab-panel">
+      <div class="panel-header">
+        <h2>Audio Feature Averages</h2>
+      </div>
+      <p class="hint">Computed across your current top tracks (last 6 months).</p>
+      <div id="audio-features-chart" class="bar-chart"></div>
+      <div id="audio-features-extra" class="stat-grid"></div>
+    </section>
+
+    <section id="panel-genres" class="tab-panel">
+      <div class="panel-header">
+        <h2>Top Genres</h2>
+      </div>
+      <p class="hint">Derived from the genres of your top artists (last 6 months).</p>
+      <div id="genres-chart" class="bar-chart"></div>
+    </section>
+  </main>
+
+  <div id="loading-overlay" class="loading-overlay hidden">
+    <div class="spinner"></div>
+  </div>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
