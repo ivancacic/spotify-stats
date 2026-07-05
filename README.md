@@ -47,6 +47,31 @@ you registered in the Spotify dashboard (including trailing slashes/paths).
 Tokens are stored in `localStorage` in your browser only — nothing is sent
 anywhere except directly to Spotify's API.
 
+## Lifetime stats
+
+The **Lifetime** tab works around the 50-track API cap the same way services
+like stats.fm do — by combining two local, browser-only data sources instead
+of a single live API call:
+
+1. **Import your Extended Streaming History.** Request it from
+   [Spotify's privacy page](https://www.spotify.com/account/privacy/)
+   ("Extended streaming history" — this can take Spotify days to prepare).
+   You'll receive a `.zip` of JSON files; drop them all into the file picker
+   on the Lifetime tab and click **Import**. Both the modern export format
+   (`ts` / `ms_played` / `master_metadata_*`) and the legacy
+   `StreamingHistory*.json` format (`endTime` / `trackName` / `msPlayed`) are
+   supported. Podcast episodes are skipped; only music tracks are counted.
+2. **Background tracking.** Click **Enable tracking** to poll
+   `/me/player/recently-played` every 2 minutes while this tab is open and
+   append any new plays it hasn't seen yet. This only accumulates history
+   from the moment you turn it on — it does not retroactively fill gaps if
+   the app was closed for a while (Spotify's endpoint still only returns the
+   last 50 plays per request).
+
+All imported and tracked play data is stored in **IndexedDB in your browser
+only** — it is never sent anywhere except directly to Spotify's own API.
+Use **Clear stored lifetime data** to wipe it.
+
 ## Limitations (Spotify API constraints)
 
 - **Recently played** only returns your **last 50** played tracks — Spotify's
@@ -60,11 +85,6 @@ anywhere except directly to Spotify's API.
   tab, your app doesn't have access — this is a Spotify-side restriction, not
   a bug in this app.
 
-If you want true multi-year "lifetime" stats (like stats.fm), Spotify doesn't
-expose that via a live API call — see the main conversation/README notes on
-how services like that actually source the data (GDPR data export + continuous
-polling over time).
-
 ## Project structure
 
 ```
@@ -76,5 +96,7 @@ spotify-stats/
     auth.js        Login, token exchange/refresh, logout
     api.js         Spotify Web API request wrapper
     charts.js      Minimal dependency-free bar chart renderer
+    store.js       IndexedDB key-value helper for lifetime play data
+    lifetime.js    Extended Streaming History parsing, merging, stats
     app.js         App wiring: tabs, data loading, rendering
 ```

@@ -41,14 +41,77 @@
     </header>
 
     <nav class="tabs">
-      <button class="tab-button active" data-tab="recent">Recently Played</button>
+      <button class="tab-button active" data-tab="lifetime">Lifetime</button>
+      <button class="tab-button" data-tab="recent">Recently Played</button>
       <button class="tab-button" data-tab="top-tracks">Top Tracks</button>
       <button class="tab-button" data-tab="top-artists">Top Artists</button>
       <button class="tab-button" data-tab="audio-features">Audio Features</button>
       <button class="tab-button" data-tab="genres">Genres</button>
     </nav>
 
-    <section id="panel-recent" class="tab-panel active">
+    <section id="panel-lifetime" class="tab-panel active">
+      <div class="panel-header">
+        <h2>Lifetime Stats</h2>
+      </div>
+      <p class="hint">
+        Spotify's live API only exposes your last 50 plays. Import your
+        <a href="https://www.spotify.com/account/privacy/" target="_blank" rel="noopener">Extended Streaming History</a>
+        export for real historical stats, and/or enable background tracking to keep building history from now on.
+        All of this data stays in your browser (IndexedDB) — nothing is uploaded anywhere.
+      </p>
+
+      <div class="lifetime-controls">
+        <div class="control-block">
+          <label for="import-file-input">Import Extended Streaming History (.json files)</label>
+          <div class="control-row">
+            <input id="import-file-input" type="file" accept=".json" multiple>
+            <button id="import-button" class="secondary-button small">Import</button>
+          </div>
+          <span id="import-status" class="hint"></span>
+        </div>
+
+        <div class="control-block">
+          <label>Background tracking</label>
+          <div class="control-row">
+            <button id="tracking-toggle" class="secondary-button small">Enable tracking</button>
+          </div>
+          <span id="tracking-status" class="hint"></span>
+        </div>
+
+        <div class="control-block">
+          <button id="clear-lifetime-button" class="secondary-button small danger">Clear stored lifetime data</button>
+        </div>
+      </div>
+
+      <p id="lifetime-empty" class="empty">No lifetime data yet. Import an Extended Streaming History export or enable background tracking above.</p>
+
+      <div id="lifetime-content" class="hidden">
+        <div class="stat-grid">
+          <div class="stat-card"><span class="stat-value" id="lifetime-total-plays">–</span><span class="stat-label">Total plays</span></div>
+          <div class="stat-card"><span class="stat-value" id="lifetime-total-hours">–</span><span class="stat-label">Hours listened</span></div>
+          <div class="stat-card"><span class="stat-value" id="lifetime-distinct-tracks">–</span><span class="stat-label">Distinct tracks</span></div>
+          <div class="stat-card"><span class="stat-value" id="lifetime-distinct-artists">–</span><span class="stat-label">Distinct artists</span></div>
+          <div class="stat-card"><span class="stat-value" id="lifetime-date-range">–</span><span class="stat-label">Date range</span></div>
+        </div>
+
+        <h3>Plays per year</h3>
+        <div id="lifetime-year-chart" class="bar-chart"></div>
+
+        <h3>Top artists by time listened (minutes)</h3>
+        <div id="lifetime-artist-chart" class="bar-chart"></div>
+
+        <h3>Top tracks by play count</h3>
+        <div id="lifetime-track-chart" class="bar-chart"></div>
+
+        <h3>Listening by hour of day</h3>
+        <div id="lifetime-hour-chart" class="bar-chart"></div>
+
+        <h3>Listening by day of week</h3>
+        <div id="lifetime-dow-chart" class="bar-chart"></div>
+      </div>
+    </section>
+
+    <section id="panel-recent" class="tab-panel">
       <div class="panel-header">
         <h2>Recently Played</h2>
         <button id="refresh-recent" class="secondary-button small">Refresh</button>

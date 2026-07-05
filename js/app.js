@@ -1,6 +1,10 @@
 import * as auth from './auth.js';
 import * as api from './api.js';
+import * as store from './store.js';
+import * as lifetime from './lifetime.js';
 import { renderBarChart } from './charts.js';
+
+const TRACKING_INTERVAL_MS = 120_000;
 
 const AUDIO_FEATURE_KEYS = [
   'danceability',
@@ -29,6 +33,14 @@ const els = {
   refreshRecent: document.getElementById('refresh-recent'),
   topTracksRange: document.getElementById('top-tracks-range'),
   topArtistsRange: document.getElementById('top-artists-range'),
+  importFileInput: document.getElementById('import-file-input'),
+  importButton: document.getElementById('import-button'),
+  importStatus: document.getElementById('import-status'),
+  trackingToggle: document.getElementById('tracking-toggle'),
+  trackingStatus: document.getElementById('tracking-status'),
+  clearLifetimeButton: document.getElementById('clear-lifetime-button'),
+  lifetimeEmpty: document.getElementById('lifetime-empty'),
+  lifetimeContent: document.getElementById('lifetime-content'),
 };
 
 const cache = {
@@ -38,6 +50,8 @@ const cache = {
   audioFeatures: null,
   genres: null,
 };
+
+let trackingIntervalId = null;
 
 function showError(message) {
   els.errorBanner.textContent = message;
@@ -117,11 +131,143 @@ function initTabs() {
 
 function loadTabData(tabName) {
   clearError();
+  if (tabName === 'lifetime') return refreshLifetimeUI();
   if (tabName === 'recent') return loadRecentlyPlayed();
   if (tabName === 'top-tracks') return loadTopTracks(els.topTracksRange.value);
   if (tabName === 'top-artists') return loadTopArtists(els.topArtistsRange.value);
   if (tabName === 'audio-features') return loadAudioFeatures();
   if (tabName === 'genres') return loadGenres();
+}
+
+function formatDate(date) {
+  return date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+}
+
+async function refreshLifetimeUI() {
+  const plays = await store.getPlays();
+  const stats = lifetime.computeStats(plays);
+
+  if (!stats) {
+    els.lifetimeEmpty.classList.remove('hidden');
+    els.lifetimeContent.classList.add('hidden');
+    return;
+  }
+
+  els.lifetimeEmpty.classList.add('hidden');
+  els.lifetimeContent.classList.remove('hidden');
+
+  document.getElementById('lifetime-total-plays').textContent = stats.totalPlays.toLocaleString();
+  document.getElementById('lifetime-total-hours').textContent = Math.round(stats.totalMs / 3_600_000).toLocaleString();
+  document.getElementById('lifetime-distinct-tracks').textContent = stats.distinctTrackCount.toLocaleString();
+  document.getElementById('lifetime-distinct-artists').textContent = stats.distinctArtistCount.toLocaleString();
+  document.getElementById('lifetime-date-range').textContent = `${formatDate(stats.earliest)} – ${formatDate(stats.latest)}`;
+
+  renderBarChart(
+    document.getElementById('lifetime-year-chart'),
+    stats.byYear.map(([year, count]) => ({ label: String(year), value: count })),
+  );
+  renderBarChart(document.getElementById('lifetime-artist-chart'), stats.topArtists, {
+    valueFormatter: (v) => `${v.toLocaleString()}m`,
+  });
+  renderBarChart(document.getElementById('lifetime-track-chart'), stats.topTracks);
+  renderBarChart(document.getElementById('lifetime-hour-chart'), stats.byHour);
+  renderBarChart(document.getElementById('lifetime-dow-chart'), stats.byDow);
+}
+
+async function handleImport() {
+  const files = els.importFileInput.files;
+  if (!files || files.length === 0) {
+    els.importStatus.textContent = 'Choose one or more .json files first.';
+    return;
+  }
+
+  await withLoading(async () => {
+    const { plays, fileCount, skippedFiles } = await lifetime.parseFiles(files);
+    const { added, total } = await lifetime.mergeAndStore(plays);
+    els.importStatus.textContent =
+      `Imported ${added.toLocaleString()} new plays from ${fileCount} file(s)` +
+      (skippedFiles ? ` (${skippedFiles} file(s) skipped — not valid export JSON)` : '') +
+      `. ${total.toLocaleString()} total plays stored.`;
+    els.importFileInput.value = '';
+    await refreshLifetimeUI();
+  }).catch(() => {});
+}
+
+async function updateTrackingStatusText() {
+  const meta = await store.getMeta();
+  els.trackingToggle.textContent = meta.trackingEnabled ? 'Disable tracking' : 'Enable tracking';
+  if (meta.trackingEnabled) {
+    els.trackingStatus.textContent = meta.lastSyncedAt
+      ? `Tracking is on. Last synced ${new Date(meta.lastSyncedAt).toLocaleString()}.`
+      : 'Tracking is on. Waiting for first sync...';
+  } else {
+    els.trackingStatus.textContent = 'Tracking is off. Turn it on to keep recording plays beyond Spotify\'s last-50 limit while this app is open.';
+  }
+}
+
+async function syncLiveHistory() {
+  try {
+    await lifetime.fetchAndMergeLive();
+  } catch (err) {
+    els.trackingStatus.textContent = `Sync failed: ${err.message}`;
+    return;
+  }
+  await updateTrackingStatusText();
+  const activePanel = document.querySelector('.tab-panel.active');
+  if (activePanel?.id === 'panel-lifetime') await refreshLifetimeUI();
+}
+
+function stopTracking() {
+  if (trackingIntervalId) {
+    clearInterval(trackingIntervalId);
+    trackingIntervalId = null;
+  }
+}
+
+function startTracking() {
+  stopTracking();
+  syncLiveHistory();
+  trackingIntervalId = setInterval(() => {
+    if (document.visibilityState === 'visible') syncLiveHistory();
+  }, TRACKING_INTERVAL_MS);
+}
+
+async function toggleTracking() {
+  const meta = await store.getMeta();
+  const enabled = !meta.trackingEnabled;
+  await store.setMeta({ ...meta, trackingEnabled: enabled });
+  if (enabled) {
+    startTracking();
+  } else {
+    stopTracking();
+  }
+  await updateTrackingStatusText();
+}
+
+async function clearLifetimeData() {
+  if (!window.confirm('This will permanently delete all imported and tracked lifetime play data from this browser. Continue?')) {
+    return;
+  }
+  stopTracking();
+  await store.clearAll();
+  await store.setMeta({ trackingEnabled: false, lastSyncedAt: null });
+  els.importStatus.textContent = '';
+  await updateTrackingStatusText();
+  await refreshLifetimeUI();
+}
+
+async function initLifetimeTracking() {
+  const meta = await store.getMeta();
+  await updateTrackingStatusText();
+  if (meta.trackingEnabled) startTracking();
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+      store.getMeta().then((m) => {
+        if (m.trackingEnabled) syncLiveHistory();
+      });
+    }
+  });
 }
 
 async function loadRecentlyPlayed(force = false) {
@@ -346,9 +492,14 @@ function initApp() {
   els.topTracksRange.addEventListener('change', () => loadTopTracks(els.topTracksRange.value));
   els.topArtistsRange.addEventListener('change', () => loadTopArtists(els.topArtistsRange.value));
 
+  els.importButton.addEventListener('click', handleImport);
+  els.trackingToggle.addEventListener('click', toggleTracking);
+  els.clearLifetimeButton.addEventListener('click', clearLifetimeData);
+
   initTabs();
+  initLifetimeTracking();
   loadUserProfile();
-  loadTabData('recent');
+  loadTabData('lifetime');
 }
 
 async function main() {
