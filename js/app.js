@@ -2,7 +2,35 @@ import * as auth from './auth.js';
 import * as api from './api.js';
 import * as store from './store.js';
 import * as lifetime from './lifetime.js';
-import { renderBarList, renderColumnChart, renderAreaChart } from './charts.js';
+import { renderBarList, renderColumnChart, renderAreaChart, redrawAll } from './charts.js';
+
+const THEME_KEY = 'spotify_stats_theme';
+const THEME_CYCLE = ['auto', 'light', 'dark'];
+
+function applyTheme(mode) {
+  if (mode === 'auto') {
+    document.documentElement.removeAttribute('data-theme');
+  } else {
+    document.documentElement.setAttribute('data-theme', mode);
+  }
+  document.querySelectorAll('.theme-toggle').forEach((btn) => {
+    btn.textContent = `Theme: ${mode[0].toUpperCase()}${mode.slice(1)}`;
+  });
+}
+
+function initThemeToggle() {
+  const stored = localStorage.getItem(THEME_KEY);
+  let mode = THEME_CYCLE.includes(stored) ? stored : 'auto';
+  applyTheme(mode);
+  document.querySelectorAll('.theme-toggle').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      mode = THEME_CYCLE[(THEME_CYCLE.indexOf(mode) + 1) % THEME_CYCLE.length];
+      localStorage.setItem(THEME_KEY, mode);
+      applyTheme(mode);
+      redrawAll();
+    });
+  });
+}
 
 const TRACKING_INTERVAL_MS = 120_000;
 
@@ -515,6 +543,7 @@ function initApp() {
 }
 
 async function main() {
+  initThemeToggle();
   initLoginScreen();
 
   try {

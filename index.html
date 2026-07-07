@@ -11,7 +11,10 @@
 
   <main id="login-screen" class="screen">
     <div class="login-card">
-      <h1>🎧 Play History Stats</h1>
+      <div class="login-title-row">
+        <h1>🎧 Play History Stats</h1>
+        <button type="button" class="secondary-button small theme-toggle" title="Switch between auto, light, and dark theme">Theme: Auto</button>
+      </div>
       <p>Connect your Spotify account to see stats on your recently played tracks, top artists, top tracks, audio features, and favorite genres.</p>
 
       <label for="client-id-input">Spotify Client ID</label>
@@ -37,6 +40,7 @@
       <div class="user-info">
         <img id="user-avatar" class="avatar hidden" alt="">
         <span id="user-name"></span>
+        <button type="button" class="secondary-button small theme-toggle" title="Switch between auto, light, and dark theme">Theme: Auto</button>
         <button id="logout-button" class="secondary-button small">Log out</button>
       </div>
     </header>

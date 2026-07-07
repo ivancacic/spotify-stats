@@ -22,17 +22,21 @@ const resizeObserver = new ResizeObserver((entries) => {
 });
 
 window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
-  for (const fn of redrawFns.values()) fn();
+  redrawAll();
 });
 
-let redrawScheduled = false;
+export function redrawAll() {
+  for (const fn of redrawFns.values()) fn();
+}
+
 function register(container, redraw) {
   const firstTime = !redrawFns.has(container);
+  let scheduled = false;
   redrawFns.set(container, () => {
-    if (redrawScheduled) return;
-    redrawScheduled = true;
+    if (scheduled) return;
+    scheduled = true;
     requestAnimationFrame(() => {
-      redrawScheduled = false;
+      scheduled = false;
       redraw();
     });
   });

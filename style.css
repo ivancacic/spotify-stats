@@ -26,8 +26,10 @@
   --danger: #c0392b;
 }
 
+/* Dark tokens apply when the system prefers dark (unless the user forced
+   light), or when the user forced dark via the header theme toggle. */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --bg: #0d0d0d;
     --surface-1: #1a1a19;
     --border: rgba(255, 255, 255, 0.1);
@@ -49,6 +51,29 @@
     --danger-text: #f5b7b1;
     --danger: #e57368;
   }
+}
+
+:root[data-theme="dark"] {
+  --bg: #0d0d0d;
+  --surface-1: #1a1a19;
+  --border: rgba(255, 255, 255, 0.1);
+
+  --ink-primary: #ffffff;
+  --ink-secondary: #c3c2b7;
+  --ink-muted: #898781;
+
+  --grid: #2c2c2a;
+  --baseline: #383835;
+
+  --series: #17a74a;
+
+  --accent: #1db954;
+  --accent-hover: #21e065;
+  --accent-ink: #06210f;
+
+  --danger-bg: #3a1d1b;
+  --danger-text: #f5b7b1;
+  --danger: #e57368;
 }
 
 * {
@@ -95,6 +120,13 @@ a {
   background: var(--surface-1);
   border: 1px solid var(--border);
   border-radius: 16px;
+}
+
+.login-title-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
 }
 
 .login-card h1 {
