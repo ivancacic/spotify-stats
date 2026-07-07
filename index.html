@@ -27,17 +27,18 @@
 
       <button id="login-button" class="primary-button">Connect with Spotify</button>
 
-      <p class="hint">Need a Client ID? Create a free app at the <a href="https://developer.spotify.com/dashboard" target="_blank" rel="noopener">Spotify Developer Dashboard</a>. See the README in this folder for step-by-step setup.</p>
+      <p class="hint">Need a Client ID? Create a free app at the <a href="https://developer.spotify.com/dashboard" target="_blank" rel="noopener">Spotify Developer Dashboard</a>. See the README for step-by-step setup.</p>
     </div>
   </main>
 
   <main id="app-screen" class="screen hidden">
     <header class="app-header">
+      <div class="brand">🎧 Play History Stats</div>
       <div class="user-info">
         <img id="user-avatar" class="avatar hidden" alt="">
         <span id="user-name"></span>
+        <button id="logout-button" class="secondary-button small">Log out</button>
       </div>
-      <button id="logout-button" class="secondary-button small">Log out</button>
     </header>
 
     <nav class="tabs">
@@ -50,9 +51,6 @@
     </nav>
 
     <section id="panel-lifetime" class="tab-panel active">
-      <div class="panel-header">
-        <h2>Lifetime Stats</h2>
-      </div>
       <p class="hint">
         Spotify's live API only exposes your last 50 plays. Import your
         <a href="https://www.spotify.com/account/privacy/" target="_blank" rel="noopener">Extended Streaming History</a>
@@ -60,7 +58,7 @@
         All of this data stays in your browser (IndexedDB) — nothing is uploaded anywhere.
       </p>
 
-      <div class="lifetime-controls">
+      <div class="lifetime-controls card">
         <div class="control-block">
           <label for="import-file-input">Import Extended Streaming History (.json files)</label>
           <div class="control-row">
@@ -87,27 +85,44 @@
 
       <div id="lifetime-content" class="hidden">
         <div class="stat-grid">
-          <div class="stat-card"><span class="stat-value" id="lifetime-total-plays">–</span><span class="stat-label">Total plays</span></div>
-          <div class="stat-card"><span class="stat-value" id="lifetime-total-hours">–</span><span class="stat-label">Hours listened</span></div>
-          <div class="stat-card"><span class="stat-value" id="lifetime-distinct-tracks">–</span><span class="stat-label">Distinct tracks</span></div>
-          <div class="stat-card"><span class="stat-value" id="lifetime-distinct-artists">–</span><span class="stat-label">Distinct artists</span></div>
-          <div class="stat-card"><span class="stat-value" id="lifetime-date-range">–</span><span class="stat-label">Date range</span></div>
+          <div class="stat-card"><span class="stat-label">Total plays</span><span class="stat-value" id="lifetime-total-plays">–</span></div>
+          <div class="stat-card"><span class="stat-label">Hours listened</span><span class="stat-value" id="lifetime-total-hours">–</span></div>
+          <div class="stat-card"><span class="stat-label">Distinct tracks</span><span class="stat-value" id="lifetime-distinct-tracks">–</span></div>
+          <div class="stat-card"><span class="stat-label">Distinct artists</span><span class="stat-value" id="lifetime-distinct-artists">–</span></div>
+          <div class="stat-card"><span class="stat-label">Date range</span><span class="stat-value stat-value-small" id="lifetime-date-range">–</span></div>
         </div>
 
-        <h3>Plays per year</h3>
-        <div id="lifetime-year-chart" class="bar-chart"></div>
+        <div class="card chart-card">
+          <h3>Listening over time <span class="chart-subtitle">plays per month</span></h3>
+          <div id="lifetime-month-chart" class="viz"></div>
+        </div>
 
-        <h3>Top artists by time listened (minutes)</h3>
-        <div id="lifetime-artist-chart" class="bar-chart"></div>
+        <div class="card-grid-2">
+          <div class="card chart-card">
+            <h3>By hour of day</h3>
+            <div id="lifetime-hour-chart" class="viz"></div>
+          </div>
+          <div class="card chart-card">
+            <h3>By day of week</h3>
+            <div id="lifetime-dow-chart" class="viz"></div>
+          </div>
+        </div>
 
-        <h3>Top tracks by play count</h3>
-        <div id="lifetime-track-chart" class="bar-chart"></div>
+        <div class="card chart-card">
+          <h3>Plays per year</h3>
+          <div id="lifetime-year-chart" class="viz"></div>
+        </div>
 
-        <h3>Listening by hour of day</h3>
-        <div id="lifetime-hour-chart" class="bar-chart"></div>
-
-        <h3>Listening by day of week</h3>
-        <div id="lifetime-dow-chart" class="bar-chart"></div>
+        <div class="card-grid-2">
+          <div class="card chart-card">
+            <h3>Top artists <span class="chart-subtitle">minutes listened</span></h3>
+            <div id="lifetime-artist-chart" class="viz"></div>
+          </div>
+          <div class="card chart-card">
+            <h3>Top tracks <span class="chart-subtitle">play count</span></h3>
+            <div id="lifetime-track-chart" class="viz"></div>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -117,14 +132,18 @@
         <button id="refresh-recent" class="secondary-button small">Refresh</button>
       </div>
       <div class="stat-grid">
-        <div class="stat-card"><span class="stat-value" id="recent-count">–</span><span class="stat-label">Tracks fetched</span></div>
-        <div class="stat-card"><span class="stat-value" id="recent-top-artist">–</span><span class="stat-label">Most played artist</span></div>
-        <div class="stat-card"><span class="stat-value" id="recent-span">–</span><span class="stat-label">Time span covered</span></div>
+        <div class="stat-card"><span class="stat-label">Tracks fetched</span><span class="stat-value" id="recent-count">–</span></div>
+        <div class="stat-card"><span class="stat-label">Most played artist</span><span class="stat-value stat-value-small" id="recent-top-artist">–</span></div>
+        <div class="stat-card"><span class="stat-label">Time span covered</span><span class="stat-value" id="recent-span">–</span></div>
       </div>
-      <h3>Listening by hour of day</h3>
-      <div id="recent-hour-chart" class="bar-chart"></div>
-      <h3>Track list</h3>
-      <ul id="recent-list" class="track-list"></ul>
+      <div class="card chart-card">
+        <h3>Listening by hour of day</h3>
+        <div id="recent-hour-chart" class="viz"></div>
+      </div>
+      <div class="card">
+        <h3>Track list</h3>
+        <ul id="recent-list" class="track-list"></ul>
+      </div>
     </section>
 
     <section id="panel-top-tracks" class="tab-panel">
@@ -136,7 +155,9 @@
           <option value="long_term">All time</option>
         </select>
       </div>
-      <ul id="top-tracks-list" class="track-list ranked"></ul>
+      <div class="card">
+        <ul id="top-tracks-list" class="track-list ranked"></ul>
+      </div>
     </section>
 
     <section id="panel-top-artists" class="tab-panel">
@@ -148,7 +169,9 @@
           <option value="long_term">All time</option>
         </select>
       </div>
-      <ul id="top-artists-list" class="artist-list ranked"></ul>
+      <div class="card">
+        <ul id="top-artists-list" class="artist-list ranked"></ul>
+      </div>
     </section>
 
     <section id="panel-audio-features" class="tab-panel">
@@ -156,7 +179,9 @@
         <h2>Audio Feature Averages</h2>
       </div>
       <p class="hint">Computed across your current top tracks (last 6 months).</p>
-      <div id="audio-features-chart" class="bar-chart"></div>
+      <div class="card chart-card">
+        <div id="audio-features-chart" class="viz"></div>
+      </div>
       <div id="audio-features-extra" class="stat-grid"></div>
     </section>
 
@@ -164,8 +189,10 @@
       <div class="panel-header">
         <h2>Top Genres</h2>
       </div>
-      <p class="hint">Derived from the genres of your top artists (last 6 months).</p>
-      <div id="genres-chart" class="bar-chart"></div>
+      <p class="hint">Derived from the genres of your top artists (last 6 months). Value = how many of your top 50 artists carry the genre.</p>
+      <div class="card chart-card">
+        <div id="genres-chart" class="viz"></div>
+      </div>
     </section>
   </main>
 

@@ -2,7 +2,7 @@ import * as auth from './auth.js';
 import * as api from './api.js';
 import * as store from './store.js';
 import * as lifetime from './lifetime.js';
-import { renderBarChart } from './charts.js';
+import { renderBarList, renderColumnChart, renderAreaChart } from './charts.js';
 
 const TRACKING_INTERVAL_MS = 120_000;
 
@@ -162,16 +162,26 @@ async function refreshLifetimeUI() {
   document.getElementById('lifetime-distinct-artists').textContent = stats.distinctArtistCount.toLocaleString();
   document.getElementById('lifetime-date-range').textContent = `${formatDate(stats.earliest)} – ${formatDate(stats.latest)}`;
 
-  renderBarChart(
+  renderAreaChart(document.getElementById('lifetime-month-chart'), stats.byMonth, {
+    categoryName: 'Month',
+    valueName: 'Plays',
+    ariaLabel: 'Plays per month over time',
+  });
+  renderColumnChart(
     document.getElementById('lifetime-year-chart'),
     stats.byYear.map(([year, count]) => ({ label: String(year), value: count })),
+    { categoryName: 'Year', valueName: 'Plays' },
   );
-  renderBarChart(document.getElementById('lifetime-artist-chart'), stats.topArtists, {
-    valueFormatter: (v) => `${v.toLocaleString()}m`,
+  renderColumnChart(document.getElementById('lifetime-hour-chart'), stats.byHour, {
+    height: 160, categoryName: 'Hour', valueName: 'Plays',
   });
-  renderBarChart(document.getElementById('lifetime-track-chart'), stats.topTracks);
-  renderBarChart(document.getElementById('lifetime-hour-chart'), stats.byHour);
-  renderBarChart(document.getElementById('lifetime-dow-chart'), stats.byDow);
+  renderColumnChart(document.getElementById('lifetime-dow-chart'), stats.byDow, {
+    height: 160, categoryName: 'Day', valueName: 'Plays',
+  });
+  renderBarList(document.getElementById('lifetime-artist-chart'), stats.topArtists, {
+    formatValue: (v) => `${v.toLocaleString()}m`,
+  });
+  renderBarList(document.getElementById('lifetime-track-chart'), stats.topTracks);
 }
 
 async function handleImport() {
@@ -307,7 +317,9 @@ function renderRecentlyPlayed(items) {
   }
 
   const hourItems = hourCounts.map((count, hour) => ({ label: `${hour}:00`, value: count }));
-  renderBarChart(document.getElementById('recent-hour-chart'), hourItems);
+  renderColumnChart(document.getElementById('recent-hour-chart'), hourItems, {
+    height: 160, categoryName: 'Hour', valueName: 'Plays',
+  });
 
   const list = document.getElementById('recent-list');
   list.innerHTML = '';
@@ -437,7 +449,7 @@ function renderAudioFeatures(features) {
     const sum = features.reduce((acc, f) => acc + (f[key] || 0), 0);
     return { label: key, value: Math.round((sum / features.length) * 100) / 100 };
   });
-  renderBarChart(chartEl, averages, { valueFormatter: (v) => v.toFixed(2) });
+  renderBarList(chartEl, averages, { formatValue: (v) => v.toFixed(2) });
 
   const avgTempo = features.reduce((acc, f) => acc + (f.tempo || 0), 0) / features.length;
   const avgLoudness = features.reduce((acc, f) => acc + (f.loudness || 0), 0) / features.length;
@@ -465,7 +477,7 @@ async function loadGenres(force = false) {
 
 function renderGenres(sorted) {
   const items = sorted.map(([genre, count]) => ({ label: genre, value: count }));
-  renderBarChart(document.getElementById('genres-chart'), items);
+  renderBarList(document.getElementById('genres-chart'), items);
 }
 
 async function loadUserProfile() {

@@ -110,10 +110,28 @@ export async function fetchAndMergeLive() {
 }
 
 const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+// Contiguous month buckets from the earliest to the latest play (gaps = 0),
+// so the timeline chart has an honest, evenly spaced x-axis.
+function monthSeries(byMonth, minTime, maxTime) {
+  const start = new Date(minTime);
+  const end = new Date(maxTime);
+  const points = [];
+  for (let y = start.getFullYear(), m = start.getMonth(); y < end.getFullYear() || (y === end.getFullYear() && m <= end.getMonth()); m++) {
+    if (m > 11) { m = 0; y++; }
+    points.push({
+      label: `${MONTH_LABELS[m]} ${String(y).slice(2)}`,
+      value: byMonth.get(y * 12 + m) || 0,
+    });
+  }
+  return points;
+}
 
 export function computeStats(plays) {
   if (!plays.length) return null;
 
+  const byMonth = new Map();
   const byYear = new Map();
   const byHour = new Array(24).fill(0);
   const byDow = new Array(7).fill(0);
@@ -136,6 +154,8 @@ export function computeStats(plays) {
     const date = new Date(time);
     totalMs += play.msPlayed || 0;
     byYear.set(date.getFullYear(), (byYear.get(date.getFullYear()) || 0) + 1);
+    const monthKey = date.getFullYear() * 12 + date.getMonth();
+    byMonth.set(monthKey, (byMonth.get(monthKey) || 0) + 1);
     byHour[date.getHours()] += 1;
     byDow[date.getDay()] += 1;
 
@@ -162,6 +182,7 @@ export function computeStats(plays) {
     earliest: new Date(minTime),
     latest: new Date(maxTime),
     byYear: [...byYear.entries()].sort((a, b) => a[0] - b[0]),
+    byMonth: monthSeries(byMonth, minTime, maxTime),
     byHour: byHour.map((count, hour) => ({ label: `${hour}:00`, value: count })),
     byDow: byDow.map((count, dow) => ({ label: DAY_LABELS[dow], value: count })),
     topArtists: [...artistMs.entries()]
