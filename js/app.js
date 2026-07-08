@@ -1,8 +1,8 @@
-import * as auth from './auth.js?v=8';
-import * as api from './api.js?v=8';
-import * as store from './store.js?v=8';
-import * as lifetime from './lifetime.js?v=8';
-import { renderBarList, renderColumnChart, renderAreaChart, redrawAll } from './charts.js?v=8';
+import * as auth from './auth.js?v=9';
+import * as api from './api.js?v=9';
+import * as store from './store.js?v=9';
+import * as lifetime from './lifetime.js?v=9';
+import { renderBarList, renderColumnChart, renderAreaChart, redrawAll } from './charts.js?v=9';
 
 const THEME_KEY = 'spotify_stats_theme';
 const THEME_CYCLE = ['auto', 'light', 'dark'];
@@ -231,6 +231,56 @@ function formatDate(date) {
 // ---------------------------------------------------------------- filters
 
 const DAY_MS = 86_400_000;
+const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const DAY_NAMES = ['Sundays', 'Mondays', 'Tuesdays', 'Wednesdays', 'Thursdays', 'Fridays', 'Saturdays'];
+
+let lifetimeHourFilter = null;
+let lifetimeDowFilter = null;
+
+function hourHistogram(plays) {
+  const counts = new Array(24).fill(0);
+  for (const play of plays) {
+    const hour = new Date(play.ts).getHours();
+    if (!Number.isNaN(hour)) counts[hour] += 1;
+  }
+  return counts.map((value, hour) => ({ label: `${hour}:00`, value }));
+}
+
+function dowHistogram(plays) {
+  const counts = new Array(7).fill(0);
+  for (const play of plays) {
+    const dow = new Date(play.ts).getDay();
+    if (!Number.isNaN(dow)) counts[dow] += 1;
+  }
+  return counts.map((value, dow) => ({ label: DAY_LABELS[dow], value }));
+}
+
+function makeChip(text, onClear) {
+  const chip = document.createElement('button');
+  chip.type = 'button';
+  chip.className = 'filter-chip';
+  chip.textContent = `${text} ✕`;
+  chip.title = 'Clear this filter';
+  chip.addEventListener('click', onClear);
+  return chip;
+}
+
+function renderLifetimeDimensionChips() {
+  const box = document.getElementById('lifetime-dimension-chips');
+  box.textContent = '';
+  if (lifetimeHourFilter !== null) {
+    box.appendChild(makeChip(`Hour ${lifetimeHourFilter}:00`, () => {
+      lifetimeHourFilter = null;
+      refreshLifetimeUI();
+    }));
+  }
+  if (lifetimeDowFilter !== null) {
+    box.appendChild(makeChip(DAY_NAMES[lifetimeDowFilter], () => {
+      lifetimeDowFilter = null;
+      refreshLifetimeUI();
+    }));
+  }
+}
 
 function currentFilterBounds() {
   const mode = els.lifetimeRangeSelect.value;
@@ -302,16 +352,48 @@ async function refreshLifetimeUI() {
   els.lifetimeCustomRange.classList.toggle('hidden', els.lifetimeRangeSelect.value !== 'custom');
 
   const { from, to } = currentFilterBounds();
-  const filtered = lifetime.filterPlays(plays, from, to);
-  const stats = lifetime.computeStats(filtered);
+  const periodPlays = lifetime.filterPlays(plays, from, to);
 
+  // Hour/day-of-week cross-filtering: each dimension chart is computed with
+  // every filter EXCEPT its own applied (so the full distribution stays
+  // visible with the selection highlighted); everything else uses both.
+  const dowMatch = (play) => new Date(play.ts).getDay() === lifetimeDowFilter;
+  const hourMatch = (play) => new Date(play.ts).getHours() === lifetimeHourFilter;
+  const forHourChart = lifetimeDowFilter === null ? periodPlays : periodPlays.filter(dowMatch);
+  const forDowChart = lifetimeHourFilter === null ? periodPlays : periodPlays.filter(hourMatch);
+  let finalPlays = forHourChart;
+  if (lifetimeHourFilter !== null) finalPlays = finalPlays.filter(hourMatch);
+
+  const stats = lifetime.computeStats(finalPlays);
+
+  renderLifetimeDimensionChips();
   els.lifetimeFilterSummary.textContent =
-    filtered.length === plays.length
+    finalPlays.length === plays.length
       ? `${plays.length.toLocaleString()} plays`
-      : `${filtered.length.toLocaleString()} of ${plays.length.toLocaleString()} plays`;
+      : `${finalPlays.length.toLocaleString()} of ${plays.length.toLocaleString()} plays`;
 
   els.lifetimeFilterEmpty.classList.toggle('hidden', !!stats);
   els.lifetimeFilteredContent.classList.toggle('hidden', !stats);
+
+  // If the combination is empty the charts are hidden with the content;
+  // the chips in the filter row remain as the way back out.
+  renderColumnChart(document.getElementById('lifetime-hour-chart'), hourHistogram(forHourChart), {
+    height: 160, categoryName: 'Hour', valueName: 'Plays',
+    selectedIndex: lifetimeHourFilter,
+    onBarClick: (i) => {
+      lifetimeHourFilter = lifetimeHourFilter === i ? null : i;
+      refreshLifetimeUI();
+    },
+  });
+  renderColumnChart(document.getElementById('lifetime-dow-chart'), dowHistogram(forDowChart), {
+    height: 160, categoryName: 'Day', valueName: 'Plays',
+    selectedIndex: lifetimeDowFilter,
+    onBarClick: (i) => {
+      lifetimeDowFilter = lifetimeDowFilter === i ? null : i;
+      refreshLifetimeUI();
+    },
+  });
+
   if (!stats) return;
 
   document.getElementById('lifetime-total-plays').textContent = stats.totalPlays.toLocaleString();
@@ -331,12 +413,6 @@ async function refreshLifetimeUI() {
     stats.byYear.map(([year, count]) => ({ label: String(year), value: count })),
     { categoryName: 'Year', valueName: 'Plays' },
   );
-  renderColumnChart(document.getElementById('lifetime-hour-chart'), stats.byHour, {
-    height: 160, categoryName: 'Hour', valueName: 'Plays',
-  });
-  renderColumnChart(document.getElementById('lifetime-dow-chart'), stats.byDow, {
-    height: 160, categoryName: 'Day', valueName: 'Plays',
-  });
   renderBarList(document.getElementById('lifetime-artist-chart'), stats.topArtists, {
     formatValue: (v) => `${v.toLocaleString()}m`,
     linkFor: (item) => spotifySearchUrl(item.label),
@@ -518,11 +594,17 @@ function recentMaxRows() {
   return Number.isFinite(value) && value >= 1 ? Math.min(Math.floor(value), 5000) : 300;
 }
 
+let recentHourFilter = null;
+
 // Re-sorts and re-renders the already-fetched rows; no API refetch.
 async function applyRecentView() {
   if (!cache.recentRows) return;
   const sorted = [...cache.recentRows].sort(RECENT_SORTS[els.recentSortSelect.value] || RECENT_SORTS.newest);
-  await hydrateArtwork(sorted.slice(0, recentMaxRows()));
+  const visible = (recentHourFilter === null
+    ? sorted
+    : sorted.filter((row) => new Date(row.playedAt).getHours() === recentHourFilter)
+  ).slice(0, recentMaxRows());
+  await hydrateArtwork(visible);
   renderRecentlyPlayed(sorted);
 }
 
@@ -585,7 +667,26 @@ function renderRecentlyPlayed(rows) {
   const hourItems = hourCounts.map((count, hour) => ({ label: `${hour}:00`, value: count }));
   renderColumnChart(document.getElementById('recent-hour-chart'), hourItems, {
     height: 160, categoryName: 'Hour', valueName: 'Plays',
+    selectedIndex: recentHourFilter,
+    onBarClick: (i) => {
+      recentHourFilter = recentHourFilter === i ? null : i;
+      applyRecentView();
+    },
   });
+
+  // The stat tiles and hour chart always cover the whole period; the hour
+  // filter only narrows the track list below.
+  const chip = document.getElementById('recent-hour-chip');
+  const listRows = recentHourFilter === null
+    ? rows
+    : rows.filter((row) => new Date(row.playedAt).getHours() === recentHourFilter);
+  if (recentHourFilter !== null) {
+    chip.textContent = `Plays at ${recentHourFilter}:00 (${listRows.length.toLocaleString()}) ✕`;
+    chip.title = 'Clear the hour filter';
+    chip.classList.remove('hidden');
+  } else {
+    chip.classList.add('hidden');
+  }
 
   const list = document.getElementById('recent-list');
   list.innerHTML = '';
@@ -593,8 +694,12 @@ function renderRecentlyPlayed(rows) {
     list.innerHTML = '<li class="empty">No plays in this period. Longer periods draw on your imported/tracked history from the Lifetime tab.</li>';
     return;
   }
+  if (listRows.length === 0) {
+    list.innerHTML = '<li class="empty">No plays at this hour in the selected period.</li>';
+    return;
+  }
   const maxRows = recentMaxRows();
-  for (const row of rows.slice(0, maxRows)) {
+  for (const row of listRows.slice(0, maxRows)) {
     const li = document.createElement('li');
     li.className = 'track-row';
     li.innerHTML = `
@@ -607,10 +712,10 @@ function renderRecentlyPlayed(rows) {
     `;
     list.appendChild(li);
   }
-  if (rows.length > maxRows) {
+  if (listRows.length > maxRows) {
     const li = document.createElement('li');
     li.className = 'empty';
-    li.textContent = `Showing ${maxRows.toLocaleString()} of ${rows.length.toLocaleString()} plays (raise the Max input for more) — the charts above cover all of them.`;
+    li.textContent = `Showing ${maxRows.toLocaleString()} of ${listRows.length.toLocaleString()} plays (raise the Max input for more) — the charts above cover all of them.`;
     list.appendChild(li);
   }
 }
@@ -921,9 +1026,16 @@ function initApp() {
   });
 
   els.refreshRecent.addEventListener('click', () => loadRecentlyPlayed(true));
-  els.recentPeriodSelect.addEventListener('change', () => loadRecentlyPlayed(true));
+  els.recentPeriodSelect.addEventListener('change', () => {
+    recentHourFilter = null;
+    loadRecentlyPlayed(true);
+  });
   els.recentSortSelect.addEventListener('change', () => applyRecentView());
   els.recentMaxInput.addEventListener('change', () => applyRecentView());
+  document.getElementById('recent-hour-chip').addEventListener('click', () => {
+    recentHourFilter = null;
+    applyRecentView();
+  });
   els.topTracksRange.addEventListener('change', () => loadTopTracks(els.topTracksRange.value));
   els.topArtistsRange.addEventListener('change', () => loadTopArtists(els.topArtistsRange.value));
   els.refreshPlaylists.addEventListener('click', () => loadPlaylists(true));

@@ -1,5 +1,5 @@
-import * as store from './store.js?v=8';
-import * as api from './api.js?v=8';
+import * as store from './store.js?v=9';
+import * as api from './api.js?v=9';
 
 function toIso(dateStr) {
   if (dateStr.includes('T')) return dateStr;

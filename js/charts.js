@@ -231,12 +231,28 @@ export function renderColumnChart(container, items, opts = {}) {
     }
   });
 
+  // With a selection active, unselected bars sit dimmed; hover dims further.
+  const selected = opts.selectedIndex ?? null;
+  const baseOpacity = (i) => (selected === null || selected === i ? '1' : '0.35');
+  const resetOpacities = () => {
+    svg.querySelectorAll('[data-col]').forEach((bar) => {
+      bar.style.opacity = baseOpacity(Number(bar.dataset.col));
+    });
+  };
+  resetOpacities();
+
   // Full-height transparent hit rects: the target is the whole slot, not the bar.
   items.forEach((item, i) => {
     const hit = svgEl('rect', {
       x: PAD.left + i * slot, y: PAD.top, width: slot, height: plotH,
-      fill: 'transparent', tabindex: 0, 'aria-label': `${item.label}: ${formatValue(item.value)}`,
+      fill: 'transparent', tabindex: 0,
+      'aria-label': `${item.label}: ${formatValue(item.value)}`
+        + (opts.onBarClick ? (selected === i ? ' (selected, activate to clear)' : ' (activate to filter)') : ''),
     });
+    if (opts.onBarClick) {
+      hit.style.cursor = 'pointer';
+      hit.setAttribute('role', 'button');
+    }
     const activate = (clientX, clientY) => {
       showTooltip(clientX, clientY, item.label, formatValue(item.value));
       svg.querySelectorAll('[data-col]').forEach((bar) => {
@@ -245,7 +261,7 @@ export function renderColumnChart(container, items, opts = {}) {
     };
     const deactivate = () => {
       hideTooltip();
-      svg.querySelectorAll('[data-col]').forEach((bar) => { bar.style.opacity = '1'; });
+      resetOpacities();
     };
     hit.addEventListener('pointermove', (e) => activate(e.clientX, e.clientY));
     hit.addEventListener('pointerleave', deactivate);
@@ -254,6 +270,15 @@ export function renderColumnChart(container, items, opts = {}) {
       activate(rect.left + rect.width / 2, rect.top);
     });
     hit.addEventListener('blur', deactivate);
+    if (opts.onBarClick) {
+      hit.addEventListener('click', () => opts.onBarClick(i));
+      hit.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          opts.onBarClick(i);
+        }
+      });
+    }
     svg.appendChild(hit);
   });
 

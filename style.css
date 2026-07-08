@@ -370,6 +370,25 @@ a {
   color: var(--ink-muted);
 }
 
+.filter-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--series);
+  background: transparent;
+  color: var(--series);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-left: 6px;
+}
+
+.filter-chip:hover {
+  background: var(--series);
+  color: var(--surface-1);
+}
+
 .inline-label {
   display: inline-flex;
   align-items: center;

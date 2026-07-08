@@ -4,7 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Play History Stats</title>
-<link rel="stylesheet" href="style.css?v=8">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎧</text></svg>">
+<link rel="stylesheet" href="style.css?v=9">
 </head>
 <body>
   <div id="error-banner" class="error-banner hidden"></div>
@@ -36,7 +37,7 @@
 
   <main id="app-screen" class="screen hidden">
     <header class="app-header">
-      <div class="brand">🎧 Play History Stats <span class="version-tag">v8</span></div>
+      <div class="brand">🎧 Play History Stats <span class="version-tag">v9</span></div>
       <div class="user-info">
         <img id="user-avatar" class="avatar hidden" alt="">
         <span id="user-name"></span>
@@ -110,6 +111,7 @@
             <span class="range-dash">–</span>
             <input type="date" id="lifetime-filter-to" aria-label="To date">
           </span>
+          <span id="lifetime-dimension-chips"></span>
           <span id="lifetime-filter-summary" class="hint"></span>
         </div>
 
@@ -131,11 +133,11 @@
 
         <div class="card-grid-2">
           <div class="card chart-card">
-            <h3>By hour of day</h3>
+            <h3>By hour of day <span class="chart-subtitle">click to filter</span></h3>
             <div id="lifetime-hour-chart" class="viz"></div>
           </div>
           <div class="card chart-card">
-            <h3>By day of week</h3>
+            <h3>By day of week <span class="chart-subtitle">click to filter</span></h3>
             <div id="lifetime-dow-chart" class="viz"></div>
           </div>
         </div>
@@ -189,11 +191,11 @@
         <div class="stat-card"><span class="stat-label">Time span covered</span><span class="stat-value" id="recent-span">–</span></div>
       </div>
       <div class="card chart-card">
-        <h3>Listening by hour of day</h3>
+        <h3>Listening by hour of day <span class="chart-subtitle">click a bar to filter the track list</span></h3>
         <div id="recent-hour-chart" class="viz"></div>
       </div>
       <div class="card">
-        <h3>Track list</h3>
+        <h3>Track list <button id="recent-hour-chip" class="filter-chip hidden" type="button"></button></h3>
         <ul id="recent-list" class="track-list"></ul>
       </div>
     </section>
@@ -280,6 +282,6 @@
     <div class="spinner"></div>
   </div>
 
-  <script type="module" src="js/app.js?v=8"></script>
+  <script type="module" src="js/app.js?v=9"></script>
 </body>
 </html>
