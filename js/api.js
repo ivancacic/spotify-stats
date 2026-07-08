@@ -1,4 +1,4 @@
-import { getValidAccessToken, logout } from './auth.js';
+import { getValidAccessToken, logout } from './auth.js?v=8';
 
 const API_BASE = 'https://api.spotify.com/v1';
 

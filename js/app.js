@@ -1,8 +1,8 @@
-import * as auth from './auth.js';
-import * as api from './api.js';
-import * as store from './store.js';
-import * as lifetime from './lifetime.js';
-import { renderBarList, renderColumnChart, renderAreaChart, redrawAll } from './charts.js';
+import * as auth from './auth.js?v=8';
+import * as api from './api.js?v=8';
+import * as store from './store.js?v=8';
+import * as lifetime from './lifetime.js?v=8';
+import { renderBarList, renderColumnChart, renderAreaChart, redrawAll } from './charts.js?v=8';
 
 const THEME_KEY = 'spotify_stats_theme';
 const THEME_CYCLE = ['auto', 'light', 'dark'];

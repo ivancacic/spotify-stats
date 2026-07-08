@@ -89,6 +89,22 @@ Use **Clear stored lifetime data** to wipe it.
   tab, your app doesn't have access — this is a Spotify-side restriction, not
   a bug in this app.
 
+## Releasing changes (cache busting)
+
+GitHub Pages and browsers cache the JS/CSS aggressively, and ES-module
+imports cache independently of the page. Every asset reference therefore
+carries a `?v=N` version query — the `<link>`/`<script>` tags in
+`index.html`, **every** `import ... from './x.js?v=N'` across the JS files,
+and the `v8`-style badge in the header. When editing any JS or CSS, bump
+them all in one go before pushing:
+
+```bash
+sed -i 's/?v=8/?v=9/g; s/>v8</>v9</' index.html js/*.js
+```
+
+Keep the version identical everywhere — two different queries for the same
+module would load it twice and split its state.
+
 ## Project structure
 
 ```

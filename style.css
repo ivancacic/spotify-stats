@@ -247,6 +247,12 @@ a {
   font-size: 15px;
 }
 
+.version-tag {
+  font-weight: 400;
+  font-size: 11px;
+  color: var(--ink-muted);
+}
+
 .user-info {
   display: flex;
   align-items: center;

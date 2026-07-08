@@ -1,4 +1,4 @@
-import { generateRandomString, generateCodeChallenge } from './pkce.js';
+import { generateRandomString, generateCodeChallenge } from './pkce.js?v=8';
 
 const AUTH_ENDPOINT = 'https://accounts.spotify.com/authorize';
 const TOKEN_ENDPOINT = 'https://accounts.spotify.com/api/token';
