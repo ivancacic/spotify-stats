@@ -84,7 +84,19 @@ const els = {
   lifetimeFilterSummary: document.getElementById('lifetime-filter-summary'),
   lifetimeFilterEmpty: document.getElementById('lifetime-filter-empty'),
   lifetimeFilteredContent: document.getElementById('lifetime-filtered-content'),
+  lifetimeSetup: document.getElementById('lifetime-setup'),
+  lifetimeSetupSummary: document.getElementById('lifetime-setup-summary'),
 };
+
+let setupCardInitialized = false;
+let lastKnownPlayCount = 0;
+
+async function updateSetupSummary(playCount = lastKnownPlayCount) {
+  lastKnownPlayCount = playCount;
+  const meta = await store.getMeta();
+  els.lifetimeSetupSummary.textContent =
+    `${playCount.toLocaleString()} plays stored · tracking ${meta.trackingEnabled ? 'on' : 'off'}`;
+}
 
 const cache = {
   recent: null,
@@ -267,6 +279,14 @@ function syncYearOptions(plays) {
 async function refreshLifetimeUI() {
   const plays = await store.getPlays();
 
+  // Collapse the setup card once there's data; only force the state on
+  // first load so a user who opened it manually isn't fought with.
+  if (!setupCardInitialized) {
+    els.lifetimeSetup.open = plays.length === 0;
+    setupCardInitialized = true;
+  }
+  updateSetupSummary(plays.length);
+
   if (!plays.length) {
     els.lifetimeEmpty.classList.remove('hidden');
     els.lifetimeContent.classList.add('hidden');
@@ -339,6 +359,7 @@ async function handleImport() {
       (skippedFiles ? ` (${skippedFiles} file(s) skipped — not valid export JSON)` : '') +
       `. ${total.toLocaleString()} total plays stored.`;
     els.importFileInput.value = '';
+    if (added > 0) els.lifetimeSetup.open = false;
     await refreshLifetimeUI();
   }).catch(() => {});
 }
@@ -392,6 +413,7 @@ async function toggleTracking() {
     stopTracking();
   }
   await updateTrackingStatusText();
+  await updateSetupSummary();
 }
 
 async function clearLifetimeData() {

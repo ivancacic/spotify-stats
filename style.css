@@ -566,6 +566,66 @@ a {
 
 /* --------------------------------------------------- lifetime controls */
 
+.setup-card {
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  margin: 16px 0;
+}
+
+.setup-card summary {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 13px 20px;
+  cursor: pointer;
+  font-size: 13px;
+  list-style: none;
+}
+
+.setup-card summary::-webkit-details-marker {
+  display: none;
+}
+
+.setup-card summary::before {
+  content: '▸';
+  color: var(--ink-muted);
+  transition: transform 0.15s;
+  display: inline-block;
+}
+
+.setup-card[open] summary::before {
+  transform: rotate(90deg);
+}
+
+.setup-card summary:hover .setup-title {
+  color: var(--ink-primary);
+}
+
+.setup-title {
+  font-weight: 600;
+  color: var(--ink-secondary);
+}
+
+.setup-summary {
+  color: var(--ink-muted);
+  font-size: 12px;
+}
+
+.setup-card[open] summary {
+  border-bottom: 1px solid var(--border);
+}
+
+.setup-card > .hint {
+  padding: 12px 20px 0;
+  margin: 0;
+}
+
+.setup-card .lifetime-controls {
+  padding: 16px 20px;
+}
+
 .lifetime-controls {
   display: flex;
   flex-direction: column;

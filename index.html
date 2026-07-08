@@ -56,35 +56,41 @@
     </nav>
 
     <section id="panel-lifetime" class="tab-panel active">
-      <p class="hint">
-        Spotify's live API only exposes your last 50 plays. Import your
-        <a href="https://www.spotify.com/account/privacy/" target="_blank" rel="noopener">Extended Streaming History</a>
-        export for real historical stats, and/or enable background tracking to keep building history from now on.
-        All of this data stays in your browser (IndexedDB) — nothing is uploaded anywhere.
-      </p>
+      <details id="lifetime-setup" class="setup-card">
+        <summary>
+          <span class="setup-title">Data sources — import &amp; tracking</span>
+          <span id="lifetime-setup-summary" class="setup-summary"></span>
+        </summary>
+        <p class="hint">
+          Spotify's live API only exposes your last 50 plays. Import your
+          <a href="https://www.spotify.com/account/privacy/" target="_blank" rel="noopener">Extended Streaming History</a>
+          export for real historical stats, and/or enable background tracking to keep building history from now on.
+          All of this data stays in your browser (IndexedDB) — nothing is uploaded anywhere.
+        </p>
 
-      <div class="lifetime-controls card">
-        <div class="control-block">
-          <label for="import-file-input">Import Extended Streaming History (.json files)</label>
-          <div class="control-row">
-            <input id="import-file-input" type="file" accept=".json" multiple>
-            <button id="import-button" class="secondary-button small">Import</button>
+        <div class="lifetime-controls">
+          <div class="control-block">
+            <label for="import-file-input">Import Extended Streaming History (.json files)</label>
+            <div class="control-row">
+              <input id="import-file-input" type="file" accept=".json" multiple>
+              <button id="import-button" class="secondary-button small">Import</button>
+            </div>
+            <span id="import-status" class="hint"></span>
           </div>
-          <span id="import-status" class="hint"></span>
-        </div>
 
-        <div class="control-block">
-          <label>Background tracking</label>
-          <div class="control-row">
-            <button id="tracking-toggle" class="secondary-button small">Enable tracking</button>
+          <div class="control-block">
+            <label>Background tracking</label>
+            <div class="control-row">
+              <button id="tracking-toggle" class="secondary-button small">Enable tracking</button>
+            </div>
+            <span id="tracking-status" class="hint"></span>
           </div>
-          <span id="tracking-status" class="hint"></span>
-        </div>
 
-        <div class="control-block">
-          <button id="clear-lifetime-button" class="secondary-button small danger">Clear stored lifetime data</button>
+          <div class="control-block">
+            <button id="clear-lifetime-button" class="secondary-button small danger">Clear stored lifetime data</button>
+          </div>
         </div>
-      </div>
+      </details>
 
       <p id="lifetime-empty" class="empty">No lifetime data yet. Import an Extended Streaming History export or enable background tracking above.</p>
 
