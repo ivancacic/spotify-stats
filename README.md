@@ -1,8 +1,16 @@
-# Spotify Play History Stats
+# 🎧 ListenLedger
 
-A static, dependency-free web app that connects to your Spotify account and shows
-statistics on your listening habits: recently played tracks, top tracks, top
-artists, audio feature averages, and top genres.
+**Your play history, accounted for.**
+
+ListenLedger (for Spotify) is a static, dependency-free web app that connects
+to your Spotify account and shows statistics on your listening habits:
+lifetime history with filters and cross-filtering charts, recently played
+tracks, top tracks and artists, playlists, audio feature averages, and top
+genres.
+
+> Naming note: per Spotify's [developer policy](https://developer.spotify.com/policy)
+> and branding guidelines, "Spotify" is only used descriptively ("for
+> Spotify") and is not part of the product name.
 
 It runs entirely in the browser — no backend server, no client secret, no
 build step. Authentication uses Spotify's **Authorization Code with PKCE**
