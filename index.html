@@ -170,6 +170,15 @@
             <option value="30">Last 30 days (your history)</option>
             <option value="90">Last 90 days (your history)</option>
           </select>
+          <select id="recent-sort-select" class="range-select" aria-label="Sort order">
+            <option value="newest" selected>Newest first</option>
+            <option value="oldest">Oldest first</option>
+            <option value="title">Title A–Z</option>
+            <option value="artist">Artist A–Z</option>
+          </select>
+          <label class="inline-label" for="recent-max-input">Max
+            <input id="recent-max-input" type="number" min="1" max="5000" step="50" value="300">
+          </label>
           <button id="refresh-recent" class="secondary-button small">Refresh</button>
         </div>
       </div>

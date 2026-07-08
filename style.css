@@ -364,6 +364,26 @@ a {
   color: var(--ink-muted);
 }
 
+.inline-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-secondary);
+}
+
+.inline-label input[type="number"] {
+  width: 72px;
+  padding: 7px 8px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface-1);
+  color: var(--ink-primary);
+  font-size: 13px;
+  font-family: inherit;
+}
+
 /* ---------------------------------------------------------------- cards */
 
 .card {

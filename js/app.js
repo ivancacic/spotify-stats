@@ -60,6 +60,8 @@ const els = {
   tabPanels: document.querySelectorAll('.tab-panel'),
   refreshRecent: document.getElementById('refresh-recent'),
   recentPeriodSelect: document.getElementById('recent-period-select'),
+  recentSortSelect: document.getElementById('recent-sort-select'),
+  recentMaxInput: document.getElementById('recent-max-input'),
   recentSourceNote: document.getElementById('recent-source-note'),
   topTracksRange: document.getElementById('top-tracks-range'),
   topArtistsRange: document.getElementById('top-artists-range'),
@@ -473,9 +475,8 @@ function trackIdFromUri(uri) {
 // History rows carry no artwork (the export doesn't include it), so resolve
 // album art for the rows being shown via the batch /tracks API, cached in
 // IndexedDB. Art is cosmetic: any failure here just leaves placeholders.
-async function hydrateArtwork(rows) {
+async function hydrateArtwork(visible) {
   try {
-    const visible = rows.slice(0, RECENT_LIST_CAP);
     const artCache = await store.getTrackArtCache();
 
     for (const row of visible) {
@@ -505,16 +506,40 @@ async function hydrateArtwork(rows) {
   }
 }
 
+const RECENT_SORTS = {
+  newest: (a, b) => new Date(b.playedAt) - new Date(a.playedAt),
+  oldest: (a, b) => new Date(a.playedAt) - new Date(b.playedAt),
+  title: (a, b) => a.title.localeCompare(b.title) || new Date(b.playedAt) - new Date(a.playedAt),
+  artist: (a, b) => a.artists.localeCompare(b.artists) || new Date(b.playedAt) - new Date(a.playedAt),
+};
+
+function recentMaxRows() {
+  const value = Number(els.recentMaxInput.value);
+  return Number.isFinite(value) && value >= 1 ? Math.min(Math.floor(value), 5000) : 300;
+}
+
+// Re-sorts and re-renders the already-fetched rows; no API refetch.
+async function applyRecentView() {
+  if (!cache.recentRows) return;
+  const sorted = [...cache.recentRows].sort(RECENT_SORTS[els.recentSortSelect.value] || RECENT_SORTS.newest);
+  await hydrateArtwork(sorted.slice(0, recentMaxRows()));
+  renderRecentlyPlayed(sorted);
+}
+
 async function loadRecentlyPlayed(force = false) {
   const mode = els.recentPeriodSelect.value;
   els.recentSourceNote.classList.toggle('hidden', mode === 'live');
 
   if (mode === 'live') {
-    if (cache.recent && !force) return renderRecentlyPlayed(cache.recent.map(normalizeLiveRow));
+    if (cache.recent && !force) {
+      cache.recentRows = cache.recent.map(normalizeLiveRow);
+      return applyRecentView();
+    }
     await withLoading(async () => {
       const data = await api.getRecentlyPlayed(50);
       cache.recent = data.items || [];
-      renderRecentlyPlayed(cache.recent.map(normalizeLiveRow));
+      cache.recentRows = cache.recent.map(normalizeLiveRow);
+      await applyRecentView();
     }).catch(() => {});
     return;
   }
@@ -522,19 +547,14 @@ async function loadRecentlyPlayed(force = false) {
   const days = Number(mode);
   const cutoff = Date.now() - days * 86_400_000;
   await withLoading(async () => {
-    const plays = (await store.getPlays())
-      .filter((play) => {
-        const time = new Date(play.ts).getTime();
-        return !Number.isNaN(time) && time >= cutoff;
-      })
-      .sort((a, b) => new Date(b.ts) - new Date(a.ts));
-    const rows = plays.map(normalizeStoredRow);
-    await hydrateArtwork(rows);
-    renderRecentlyPlayed(rows);
+    const plays = (await store.getPlays()).filter((play) => {
+      const time = new Date(play.ts).getTime();
+      return !Number.isNaN(time) && time >= cutoff;
+    });
+    cache.recentRows = plays.map(normalizeStoredRow);
+    await applyRecentView();
   }).catch(() => {});
 }
-
-const RECENT_LIST_CAP = 300;
 
 function renderRecentlyPlayed(rows) {
   document.getElementById('recent-count').textContent = rows.length.toLocaleString();
@@ -554,9 +574,8 @@ function renderRecentlyPlayed(rows) {
     : '–';
 
   if (rows.length > 0) {
-    const oldest = new Date(rows[rows.length - 1].playedAt);
-    const newest = new Date(rows[0].playedAt);
-    const hours = Math.max(1, Math.round((newest - oldest) / 3_600_000));
+    const times = rows.map((row) => new Date(row.playedAt).getTime()).filter((t) => !Number.isNaN(t));
+    const hours = Math.max(1, Math.round((Math.max(...times) - Math.min(...times)) / 3_600_000));
     document.getElementById('recent-span').textContent =
       hours < 48 ? `${hours}h` : `${Math.round(hours / 24)}d`;
   } else {
@@ -574,7 +593,8 @@ function renderRecentlyPlayed(rows) {
     list.innerHTML = '<li class="empty">No plays in this period. Longer periods draw on your imported/tracked history from the Lifetime tab.</li>';
     return;
   }
-  for (const row of rows.slice(0, RECENT_LIST_CAP)) {
+  const maxRows = recentMaxRows();
+  for (const row of rows.slice(0, maxRows)) {
     const li = document.createElement('li');
     li.className = 'track-row';
     li.innerHTML = `
@@ -587,10 +607,10 @@ function renderRecentlyPlayed(rows) {
     `;
     list.appendChild(li);
   }
-  if (rows.length > RECENT_LIST_CAP) {
+  if (rows.length > maxRows) {
     const li = document.createElement('li');
     li.className = 'empty';
-    li.textContent = `Showing the ${RECENT_LIST_CAP} most recent of ${rows.length.toLocaleString()} plays — the charts above cover all of them.`;
+    li.textContent = `Showing ${maxRows.toLocaleString()} of ${rows.length.toLocaleString()} plays (raise the Max input for more) — the charts above cover all of them.`;
     list.appendChild(li);
   }
 }
@@ -902,6 +922,8 @@ function initApp() {
 
   els.refreshRecent.addEventListener('click', () => loadRecentlyPlayed(true));
   els.recentPeriodSelect.addEventListener('change', () => loadRecentlyPlayed(true));
+  els.recentSortSelect.addEventListener('change', () => applyRecentView());
+  els.recentMaxInput.addEventListener('change', () => applyRecentView());
   els.topTracksRange.addEventListener('change', () => loadTopTracks(els.topTracksRange.value));
   els.topArtistsRange.addEventListener('change', () => loadTopArtists(els.topArtistsRange.value));
   els.refreshPlaylists.addEventListener('click', () => loadPlaylists(true));
