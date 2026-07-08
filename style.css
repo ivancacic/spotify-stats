@@ -328,6 +328,42 @@ a {
   font-size: 13px;
 }
 
+/* --------------------------------------------------------------- filters */
+
+.filter-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 16px 0 4px;
+}
+
+.filter-row > label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-secondary);
+}
+
+.custom-range {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.custom-range input[type="date"] {
+  padding: 7px 8px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface-1);
+  color: var(--ink-primary);
+  font-size: 13px;
+  font-family: inherit;
+}
+
+.range-dash {
+  color: var(--ink-muted);
+}
+
 /* ---------------------------------------------------------------- cards */
 
 .card {

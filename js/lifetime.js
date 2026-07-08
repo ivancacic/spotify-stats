@@ -111,27 +111,73 @@ export async function fetchAndMergeLive() {
 
 const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const DAY_MS = 86_400_000;
 
-// Contiguous month buckets from the earliest to the latest play (gaps = 0),
-// so the timeline chart has an honest, evenly spaced x-axis.
-function monthSeries(byMonth, minTime, maxTime) {
-  const start = new Date(minTime);
-  const end = new Date(maxTime);
-  const points = [];
-  for (let y = start.getFullYear(), m = start.getMonth(); y < end.getFullYear() || (y === end.getFullYear() && m <= end.getMonth()); m++) {
-    if (m > 11) { m = 0; y++; }
-    points.push({
-      label: `${MONTH_LABELS[m]} ${String(y).slice(2)}`,
-      value: byMonth.get(y * 12 + m) || 0,
-    });
+export function filterPlays(plays, fromTs, toTs) {
+  if (fromTs == null && toTs == null) return plays;
+  return plays.filter((play) => {
+    const time = new Date(play.ts).getTime();
+    if (Number.isNaN(time)) return false;
+    if (fromTs != null && time < fromTs) return false;
+    if (toTs != null && time > toTs) return false;
+    return true;
+  });
+}
+
+export function distinctYears(plays) {
+  const years = new Set();
+  for (const play of plays) {
+    const year = new Date(play.ts).getFullYear();
+    if (!Number.isNaN(year)) years.add(year);
   }
-  return points;
+  return [...years].sort((a, b) => b - a);
+}
+
+// Contiguous time buckets from the earliest to the latest play (gaps = 0),
+// so the timeline chart has an honest, evenly spaced x-axis. Granularity
+// adapts to the span: days up to ~3 months, weeks up to ~2 years, months
+// beyond that.
+function timelineSeries(times, minTime, maxTime) {
+  const spanDays = (maxTime - minTime) / DAY_MS;
+  const unit = spanDays <= 92 ? 'day' : spanDays <= 750 ? 'week' : 'month';
+
+  const bucketStart = (time) => {
+    const d = new Date(time);
+    d.setHours(0, 0, 0, 0);
+    if (unit === 'week') d.setDate(d.getDate() - d.getDay());
+    if (unit === 'month') d.setDate(1);
+    return d.getTime();
+  };
+  const nextBucket = (time) => {
+    const d = new Date(time);
+    if (unit === 'day') d.setDate(d.getDate() + 1);
+    if (unit === 'week') d.setDate(d.getDate() + 7);
+    if (unit === 'month') d.setMonth(d.getMonth() + 1);
+    return d.getTime();
+  };
+  const labelFor = (time) => {
+    const d = new Date(time);
+    if (unit === 'month') return `${MONTH_LABELS[d.getMonth()]} ${String(d.getFullYear()).slice(2)}`;
+    return `${MONTH_LABELS[d.getMonth()]} ${d.getDate()}`;
+  };
+
+  const counts = new Map();
+  for (const time of times) {
+    const key = bucketStart(time);
+    counts.set(key, (counts.get(key) || 0) + 1);
+  }
+
+  const points = [];
+  const last = bucketStart(maxTime);
+  for (let t = bucketStart(minTime); t <= last && points.length < 1500; t = nextBucket(t)) {
+    points.push({ label: labelFor(t), value: counts.get(t) || 0 });
+  }
+  return { points, unit };
 }
 
 export function computeStats(plays) {
   if (!plays.length) return null;
 
-  const byMonth = new Map();
   const byYear = new Map();
   const byHour = new Array(24).fill(0);
   const byDow = new Array(7).fill(0);
@@ -139,23 +185,21 @@ export function computeStats(plays) {
   const trackCounts = new Map();
   const distinctArtists = new Set();
   const distinctTracks = new Set();
+  const validTimes = [];
   let totalMs = 0;
-  let validDates = 0;
   let minTime = Infinity;
   let maxTime = -Infinity;
 
   for (const play of plays) {
     const time = new Date(play.ts).getTime();
     if (Number.isNaN(time)) continue;
-    validDates++;
+    validTimes.push(time);
     minTime = Math.min(minTime, time);
     maxTime = Math.max(maxTime, time);
 
     const date = new Date(time);
     totalMs += play.msPlayed || 0;
     byYear.set(date.getFullYear(), (byYear.get(date.getFullYear()) || 0) + 1);
-    const monthKey = date.getFullYear() * 12 + date.getMonth();
-    byMonth.set(monthKey, (byMonth.get(monthKey) || 0) + 1);
     byHour[date.getHours()] += 1;
     byDow[date.getDay()] += 1;
 
@@ -172,7 +216,9 @@ export function computeStats(plays) {
     });
   }
 
-  if (validDates === 0) return null;
+  if (validTimes.length === 0) return null;
+
+  const { points: timeline, unit: timelineUnit } = timelineSeries(validTimes, minTime, maxTime);
 
   return {
     totalPlays: plays.length,
@@ -182,7 +228,8 @@ export function computeStats(plays) {
     earliest: new Date(minTime),
     latest: new Date(maxTime),
     byYear: [...byYear.entries()].sort((a, b) => a[0] - b[0]),
-    byMonth: monthSeries(byMonth, minTime, maxTime),
+    timeline,
+    timelineUnit,
     byHour: byHour.map((count, hour) => ({ label: `${hour}:00`, value: count })),
     byDow: byDow.map((count, dow) => ({ label: DAY_LABELS[dow], value: count })),
     topArtists: [...artistMs.entries()]

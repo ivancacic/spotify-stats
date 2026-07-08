@@ -69,6 +69,13 @@ const els = {
   clearLifetimeButton: document.getElementById('clear-lifetime-button'),
   lifetimeEmpty: document.getElementById('lifetime-empty'),
   lifetimeContent: document.getElementById('lifetime-content'),
+  lifetimeRangeSelect: document.getElementById('lifetime-range-select'),
+  lifetimeCustomRange: document.getElementById('lifetime-custom-range'),
+  lifetimeFilterFrom: document.getElementById('lifetime-filter-from'),
+  lifetimeFilterTo: document.getElementById('lifetime-filter-to'),
+  lifetimeFilterSummary: document.getElementById('lifetime-filter-summary'),
+  lifetimeFilterEmpty: document.getElementById('lifetime-filter-empty'),
+  lifetimeFilteredContent: document.getElementById('lifetime-filtered-content'),
 };
 
 const cache = {
@@ -171,11 +178,60 @@ function formatDate(date) {
   return date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
 }
 
+// ---------------------------------------------------------------- filters
+
+const DAY_MS = 86_400_000;
+
+function currentFilterBounds() {
+  const mode = els.lifetimeRangeSelect.value;
+  const now = Date.now();
+  if (mode === 'all') return { from: null, to: null };
+  if (mode.startsWith('last')) {
+    return { from: now - Number(mode.slice(4)) * DAY_MS, to: null };
+  }
+  if (mode.startsWith('year:')) {
+    const year = Number(mode.slice(5));
+    return {
+      from: new Date(year, 0, 1).getTime(),
+      to: new Date(year + 1, 0, 1).getTime() - 1,
+    };
+  }
+  if (mode === 'custom') {
+    const from = els.lifetimeFilterFrom.value
+      ? new Date(`${els.lifetimeFilterFrom.value}T00:00:00`).getTime()
+      : null;
+    const to = els.lifetimeFilterTo.value
+      ? new Date(`${els.lifetimeFilterTo.value}T23:59:59.999`).getTime()
+      : null;
+    return { from, to };
+  }
+  return { from: null, to: null };
+}
+
+function syncYearOptions(plays) {
+  const years = lifetime.distinctYears(plays);
+  const select = els.lifetimeRangeSelect;
+  const existing = new Set(
+    [...select.options].filter((o) => o.value.startsWith('year:')).map((o) => o.value),
+  );
+  const wanted = years.map((y) => `year:${y}`);
+  if (wanted.length === existing.size && wanted.every((v) => existing.has(v))) return;
+
+  [...select.options].filter((o) => o.value.startsWith('year:')).forEach((o) => o.remove());
+  const customOption = select.querySelector('option[value="custom"]');
+  for (const year of years) {
+    const option = document.createElement('option');
+    option.value = `year:${year}`;
+    option.textContent = String(year);
+    select.insertBefore(option, customOption);
+  }
+  if (![...select.options].some((o) => o.value === select.value)) select.value = 'all';
+}
+
 async function refreshLifetimeUI() {
   const plays = await store.getPlays();
-  const stats = lifetime.computeStats(plays);
 
-  if (!stats) {
+  if (!plays.length) {
     els.lifetimeEmpty.classList.remove('hidden');
     els.lifetimeContent.classList.add('hidden');
     return;
@@ -184,16 +240,33 @@ async function refreshLifetimeUI() {
   els.lifetimeEmpty.classList.add('hidden');
   els.lifetimeContent.classList.remove('hidden');
 
+  syncYearOptions(plays);
+  els.lifetimeCustomRange.classList.toggle('hidden', els.lifetimeRangeSelect.value !== 'custom');
+
+  const { from, to } = currentFilterBounds();
+  const filtered = lifetime.filterPlays(plays, from, to);
+  const stats = lifetime.computeStats(filtered);
+
+  els.lifetimeFilterSummary.textContent =
+    filtered.length === plays.length
+      ? `${plays.length.toLocaleString()} plays`
+      : `${filtered.length.toLocaleString()} of ${plays.length.toLocaleString()} plays`;
+
+  els.lifetimeFilterEmpty.classList.toggle('hidden', !!stats);
+  els.lifetimeFilteredContent.classList.toggle('hidden', !stats);
+  if (!stats) return;
+
   document.getElementById('lifetime-total-plays').textContent = stats.totalPlays.toLocaleString();
   document.getElementById('lifetime-total-hours').textContent = Math.round(stats.totalMs / 3_600_000).toLocaleString();
   document.getElementById('lifetime-distinct-tracks').textContent = stats.distinctTrackCount.toLocaleString();
   document.getElementById('lifetime-distinct-artists').textContent = stats.distinctArtistCount.toLocaleString();
   document.getElementById('lifetime-date-range').textContent = `${formatDate(stats.earliest)} – ${formatDate(stats.latest)}`;
 
-  renderAreaChart(document.getElementById('lifetime-month-chart'), stats.byMonth, {
-    categoryName: 'Month',
+  document.getElementById('lifetime-timeline-unit').textContent = `plays per ${stats.timelineUnit}`;
+  renderAreaChart(document.getElementById('lifetime-month-chart'), stats.timeline, {
+    categoryName: stats.timelineUnit[0].toUpperCase() + stats.timelineUnit.slice(1),
     valueName: 'Plays',
-    ariaLabel: 'Plays per month over time',
+    ariaLabel: `Plays per ${stats.timelineUnit} over time`,
   });
   renderColumnChart(
     document.getElementById('lifetime-year-chart'),
@@ -535,6 +608,10 @@ function initApp() {
   els.importButton.addEventListener('click', handleImport);
   els.trackingToggle.addEventListener('click', toggleTracking);
   els.clearLifetimeButton.addEventListener('click', clearLifetimeData);
+
+  els.lifetimeRangeSelect.addEventListener('change', () => refreshLifetimeUI());
+  els.lifetimeFilterFrom.addEventListener('change', () => refreshLifetimeUI());
+  els.lifetimeFilterTo.addEventListener('change', () => refreshLifetimeUI());
 
   initTabs();
   initLifetimeTracking();

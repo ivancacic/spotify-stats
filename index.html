@@ -88,6 +88,27 @@
       <p id="lifetime-empty" class="empty">No lifetime data yet. Import an Extended Streaming History export or enable background tracking above.</p>
 
       <div id="lifetime-content" class="hidden">
+        <div class="filter-row">
+          <label for="lifetime-range-select">Period</label>
+          <select id="lifetime-range-select" class="range-select">
+            <option value="all" selected>All time</option>
+            <option value="last7">Last 7 days</option>
+            <option value="last30">Last 30 days</option>
+            <option value="last90">Last 90 days</option>
+            <option value="last365">Last 12 months</option>
+            <option value="custom">Custom range…</option>
+          </select>
+          <span id="lifetime-custom-range" class="custom-range hidden">
+            <input type="date" id="lifetime-filter-from" aria-label="From date">
+            <span class="range-dash">–</span>
+            <input type="date" id="lifetime-filter-to" aria-label="To date">
+          </span>
+          <span id="lifetime-filter-summary" class="hint"></span>
+        </div>
+
+        <p id="lifetime-filter-empty" class="empty hidden">No plays in the selected period.</p>
+
+        <div id="lifetime-filtered-content">
         <div class="stat-grid">
           <div class="stat-card"><span class="stat-label">Total plays</span><span class="stat-value" id="lifetime-total-plays">–</span></div>
           <div class="stat-card"><span class="stat-label">Hours listened</span><span class="stat-value" id="lifetime-total-hours">–</span></div>
@@ -97,7 +118,7 @@
         </div>
 
         <div class="card chart-card">
-          <h3>Listening over time <span class="chart-subtitle">plays per month</span></h3>
+          <h3>Listening over time <span class="chart-subtitle" id="lifetime-timeline-unit">plays per month</span></h3>
           <div id="lifetime-month-chart" class="viz"></div>
         </div>
 
@@ -126,6 +147,7 @@
             <h3>Top tracks <span class="chart-subtitle">play count</span></h3>
             <div id="lifetime-track-chart" class="viz"></div>
           </div>
+        </div>
         </div>
       </div>
     </section>
