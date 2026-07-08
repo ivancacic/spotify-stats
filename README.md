@@ -12,6 +12,9 @@ genres.
 > and branding guidelines, "Spotify" is only used descriptively ("for
 > Spotify") and is not part of the product name.
 
+**Live app:** https://ivancacic.github.io/spotify-stats/index.html
+(each user connects with their own Spotify app Client ID — see below).
+
 It runs entirely in the browser — no backend server, no client secret, no
 build step. Authentication uses Spotify's **Authorization Code with PKCE**
 flow, which is designed for public clients like this one.
@@ -97,6 +100,27 @@ Use **Clear stored lifetime data** to wipe it.
   tab, your app doesn't have access — this is a Spotify-side restriction, not
   a bug in this app.
 
+## Going public — what "publishing" means for a Spotify-API app
+
+The site itself is public (GitHub Pages), but Spotify gates who can *log in*:
+
+- **Development Mode (the default).** A newly created Spotify app only
+  accepts logins from users you explicitly allowlist in the dashboard under
+  **User Management** (name + Spotify email, up to 25 users). Anyone else
+  gets a 403 at login.
+- **Extended Quota Mode** lifts that limit, but since May 2025 Spotify only
+  grants it to established businesses (their stated bar is 250k+ MAU), so
+  it's effectively out of reach for hobby projects.
+- **The practical public model — bring your own Client ID.** ListenLedger is
+  built for this: every visitor creates their own free Spotify app (2
+  minutes, see Setup above), pastes their own Client ID, and uses the app
+  under their own quota. No allowlist, no server, and their tokens/data stay
+  in their own browser.
+
+So "publishing" ListenLedger = sharing the URL + the Setup instructions, and
+optionally allowlisting close friends on *your* Client ID so they can skip
+the setup.
+
 ## Releasing changes (cache busting)
 
 GitHub Pages and browsers cache the JS/CSS aggressively, and ES-module
@@ -128,3 +152,7 @@ spotify-stats/
     lifetime.js    Extended Streaming History parsing, merging, stats
     app.js         App wiring: tabs, data loading, rendering
 ```
+
+## License
+
+MIT — see [LICENSE](LICENSE).
