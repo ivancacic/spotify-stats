@@ -382,10 +382,16 @@ export function renderBarList(container, items, opts = {}) {
     const row = document.createElement('div');
     row.className = 'viz-bar-row';
 
-    const label = document.createElement('span');
+    const url = opts.linkFor ? opts.linkFor(item) : null;
+    const label = document.createElement(url ? 'a' : 'span');
     label.className = 'viz-bar-label';
     label.textContent = item.label;
     label.title = item.label;
+    if (url) {
+      label.href = url;
+      label.target = '_blank';
+      label.rel = 'noopener';
+    }
 
     const area = document.createElement('div');
     area.className = 'viz-bar-area';

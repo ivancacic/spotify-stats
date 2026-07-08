@@ -50,6 +50,7 @@
       <button class="tab-button" data-tab="recent">Recently Played</button>
       <button class="tab-button" data-tab="top-tracks">Top Tracks</button>
       <button class="tab-button" data-tab="top-artists">Top Artists</button>
+      <button class="tab-button" data-tab="playlists">Playlists</button>
       <button class="tab-button" data-tab="audio-features">Audio Features</button>
       <button class="tab-button" data-tab="genres">Genres</button>
     </nav>
@@ -155,8 +156,18 @@
     <section id="panel-recent" class="tab-panel">
       <div class="panel-header">
         <h2>Recently Played</h2>
-        <button id="refresh-recent" class="secondary-button small">Refresh</button>
+        <div class="control-row">
+          <select id="recent-period-select" class="range-select">
+            <option value="live" selected>Last 50 (live from Spotify)</option>
+            <option value="7">Last 7 days (your history)</option>
+            <option value="14">Last 14 days (your history)</option>
+            <option value="30">Last 30 days (your history)</option>
+            <option value="90">Last 90 days (your history)</option>
+          </select>
+          <button id="refresh-recent" class="secondary-button small">Refresh</button>
+        </div>
       </div>
+      <p id="recent-source-note" class="hint hidden">Spotify's live API only returns the last 50 plays — longer periods are served from your imported/tracked history on the Lifetime tab, so they cover whatever that data covers.</p>
       <div class="stat-grid">
         <div class="stat-card"><span class="stat-label">Tracks fetched</span><span class="stat-value" id="recent-count">–</span></div>
         <div class="stat-card"><span class="stat-label">Most played artist</span><span class="stat-value stat-value-small" id="recent-top-artist">–</span></div>
@@ -200,6 +211,29 @@
       </div>
     </section>
 
+    <section id="panel-playlists" class="tab-panel">
+      <div class="panel-header">
+        <h2>Playlists</h2>
+        <button id="refresh-playlists" class="secondary-button small">Refresh</button>
+      </div>
+      <p id="playlists-scope-note" class="hint hidden">Your current login doesn't include playlist access (it was granted before this feature existed). Log out and reconnect to enable it.</p>
+      <div id="playlists-content" class="hidden">
+        <div class="stat-grid">
+          <div class="stat-card"><span class="stat-label">Playlists</span><span class="stat-value" id="playlists-count">–</span></div>
+          <div class="stat-card"><span class="stat-label">Total tracks</span><span class="stat-value" id="playlists-track-count">–</span></div>
+          <div class="stat-card"><span class="stat-label">Owned by you</span><span class="stat-value" id="playlists-owned-count">–</span></div>
+        </div>
+        <div class="card chart-card">
+          <h3>Largest playlists <span class="chart-subtitle">track count</span></h3>
+          <div id="playlists-chart" class="viz"></div>
+        </div>
+        <div class="card">
+          <h3>All playlists</h3>
+          <ul id="playlists-list" class="track-list"></ul>
+        </div>
+      </div>
+    </section>
+
     <section id="panel-audio-features" class="tab-panel">
       <div class="panel-header">
         <h2>Audio Feature Averages</h2>
@@ -214,8 +248,13 @@
     <section id="panel-genres" class="tab-panel">
       <div class="panel-header">
         <h2>Top Genres</h2>
+        <select id="genres-source-select" class="range-select">
+          <option value="recent" selected>Top artists (last 6 months)</option>
+          <option value="lifetime">All time (from your history)</option>
+        </select>
       </div>
-      <p class="hint">Derived from the genres of your top artists (last 6 months). Value = how many of your top 50 artists carry the genre.</p>
+      <p id="genres-hint" class="hint">Derived from the genres of your top artists (last 6 months). Value = how many of your top 50 artists carry the genre.</p>
+      <p id="genres-status" class="hint hidden"></p>
       <div class="card chart-card">
         <div id="genres-chart" class="viz"></div>
       </div>

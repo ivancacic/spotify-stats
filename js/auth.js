@@ -2,7 +2,13 @@ import { generateRandomString, generateCodeChallenge } from './pkce.js';
 
 const AUTH_ENDPOINT = 'https://accounts.spotify.com/authorize';
 const TOKEN_ENDPOINT = 'https://accounts.spotify.com/api/token';
-const SCOPES = ['user-read-recently-played', 'user-top-read', 'user-read-private'];
+const SCOPES = [
+  'user-read-recently-played',
+  'user-top-read',
+  'user-read-private',
+  'playlist-read-private',
+  'playlist-read-collaborative',
+];
 
 const KEYS = {
   clientId: 'spotify_stats_client_id',

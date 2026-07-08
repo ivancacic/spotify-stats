@@ -49,6 +49,16 @@ export function setMeta(meta) {
   return set('meta', meta);
 }
 
+// Cache of artist name -> { genres, url } resolved via the Spotify search
+// API, so lifetime genre stats don't re-query the same artists every visit.
+export async function getArtistGenreCache() {
+  return (await get('artistGenres')) || {};
+}
+
+export function setArtistGenreCache(cache) {
+  return set('artistGenres', cache);
+}
+
 export async function clearAll() {
   const db = await openDb();
   return new Promise((resolve, reject) => {

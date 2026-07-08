@@ -59,8 +59,16 @@ const els = {
   tabButtons: document.querySelectorAll('.tab-button'),
   tabPanels: document.querySelectorAll('.tab-panel'),
   refreshRecent: document.getElementById('refresh-recent'),
+  recentPeriodSelect: document.getElementById('recent-period-select'),
+  recentSourceNote: document.getElementById('recent-source-note'),
   topTracksRange: document.getElementById('top-tracks-range'),
   topArtistsRange: document.getElementById('top-artists-range'),
+  refreshPlaylists: document.getElementById('refresh-playlists'),
+  playlistsScopeNote: document.getElementById('playlists-scope-note'),
+  playlistsContent: document.getElementById('playlists-content'),
+  genresSourceSelect: document.getElementById('genres-source-select'),
+  genresHint: document.getElementById('genres-hint'),
+  genresStatus: document.getElementById('genres-status'),
   importFileInput: document.getElementById('import-file-input'),
   importButton: document.getElementById('import-button'),
   importStatus: document.getElementById('import-status'),
@@ -82,9 +90,36 @@ const cache = {
   recent: null,
   topTracks: {},
   topArtists: {},
+  playlists: null,
   audioFeatures: null,
   genres: null,
+  lifetimeGenres: null,
 };
+
+// ------------------------------------------------------------ link helpers
+
+function spotifySearchUrl(query) {
+  return `https://open.spotify.com/search/${encodeURIComponent(query)}`;
+}
+
+function spotifyUrlFromUri(uri) {
+  // spotify:track:abc123 -> https://open.spotify.com/track/abc123
+  const parts = (uri || '').split(':');
+  if (parts.length === 3 && parts[0] === 'spotify') {
+    return `https://open.spotify.com/${parts[1]}/${parts[2]}`;
+  }
+  return '';
+}
+
+function escapeAttr(str) {
+  return String(str ?? '').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+}
+
+function linkHtml(text, url, className) {
+  const inner = escapeHtml(text);
+  if (!url) return `<span class="${className}" title="${escapeAttr(text)}">${inner}</span>`;
+  return `<a class="${className} entity-link" title="${escapeAttr(text)}" href="${escapeAttr(url)}" target="_blank" rel="noopener">${inner}</a>`;
+}
 
 let trackingIntervalId = null;
 
@@ -170,6 +205,7 @@ function loadTabData(tabName) {
   if (tabName === 'recent') return loadRecentlyPlayed();
   if (tabName === 'top-tracks') return loadTopTracks(els.topTracksRange.value);
   if (tabName === 'top-artists') return loadTopArtists(els.topArtistsRange.value);
+  if (tabName === 'playlists') return loadPlaylists();
   if (tabName === 'audio-features') return loadAudioFeatures();
   if (tabName === 'genres') return loadGenres();
 }
@@ -281,8 +317,11 @@ async function refreshLifetimeUI() {
   });
   renderBarList(document.getElementById('lifetime-artist-chart'), stats.topArtists, {
     formatValue: (v) => `${v.toLocaleString()}m`,
+    linkFor: (item) => spotifySearchUrl(item.label),
   });
-  renderBarList(document.getElementById('lifetime-track-chart'), stats.topTracks);
+  renderBarList(document.getElementById('lifetime-track-chart'), stats.topTracks, {
+    linkFor: (item) => spotifySearchUrl(item.label.replace(' — ', ' ')),
+  });
 }
 
 async function handleImport() {
@@ -381,24 +420,64 @@ async function initLifetimeTracking() {
   });
 }
 
-async function loadRecentlyPlayed(force = false) {
-  if (cache.recent && !force) return renderRecentlyPlayed(cache.recent);
-  await withLoading(async () => {
-    const data = await api.getRecentlyPlayed(50);
-    cache.recent = data.items || [];
-    renderRecentlyPlayed(cache.recent);
-  }).catch(() => {});
+// Normalized play row for rendering: works for both the live API (rich
+// objects with art + URLs) and the local lifetime store (name/uri only).
+function normalizeLiveRow(item) {
+  return {
+    title: item.track.name,
+    artists: item.track.artists.map((a) => a.name).join(', '),
+    playedAt: item.played_at,
+    art: item.track.album?.images?.[2]?.url || item.track.album?.images?.[0]?.url || '',
+    url: item.track.external_urls?.spotify || spotifyUrlFromUri(item.track.uri),
+  };
 }
 
-function renderRecentlyPlayed(items) {
-  document.getElementById('recent-count').textContent = items.length;
+function normalizeStoredRow(play) {
+  return {
+    title: play.trackName,
+    artists: play.artistName,
+    playedAt: play.ts,
+    art: '',
+    url: spotifyUrlFromUri(play.trackUri) || spotifySearchUrl(`${play.trackName} ${play.artistName}`),
+  };
+}
+
+async function loadRecentlyPlayed(force = false) {
+  const mode = els.recentPeriodSelect.value;
+  els.recentSourceNote.classList.toggle('hidden', mode === 'live');
+
+  if (mode === 'live') {
+    if (cache.recent && !force) return renderRecentlyPlayed(cache.recent.map(normalizeLiveRow));
+    await withLoading(async () => {
+      const data = await api.getRecentlyPlayed(50);
+      cache.recent = data.items || [];
+      renderRecentlyPlayed(cache.recent.map(normalizeLiveRow));
+    }).catch(() => {});
+    return;
+  }
+
+  const days = Number(mode);
+  const cutoff = Date.now() - days * 86_400_000;
+  const plays = (await store.getPlays())
+    .filter((play) => {
+      const time = new Date(play.ts).getTime();
+      return !Number.isNaN(time) && time >= cutoff;
+    })
+    .sort((a, b) => new Date(b.ts) - new Date(a.ts));
+  renderRecentlyPlayed(plays.map(normalizeStoredRow));
+}
+
+const RECENT_LIST_CAP = 300;
+
+function renderRecentlyPlayed(rows) {
+  document.getElementById('recent-count').textContent = rows.length.toLocaleString();
 
   const artistCounts = new Map();
   const hourCounts = new Array(24).fill(0);
-  for (const item of items) {
-    const artistName = item.track.artists[0]?.name || 'Unknown';
+  for (const row of rows) {
+    const artistName = row.artists.split(',')[0].trim() || 'Unknown';
     artistCounts.set(artistName, (artistCounts.get(artistName) || 0) + 1);
-    const hour = new Date(item.played_at).getHours();
+    const hour = new Date(row.playedAt).getHours();
     hourCounts[hour] += 1;
   }
 
@@ -407,9 +486,9 @@ function renderRecentlyPlayed(items) {
     ? `${topArtist[0]} (${topArtist[1]})`
     : '–';
 
-  if (items.length > 0) {
-    const oldest = new Date(items[items.length - 1].played_at);
-    const newest = new Date(items[0].played_at);
+  if (rows.length > 0) {
+    const oldest = new Date(rows[rows.length - 1].playedAt);
+    const newest = new Date(rows[0].playedAt);
     const hours = Math.max(1, Math.round((newest - oldest) / 3_600_000));
     document.getElementById('recent-span').textContent =
       hours < 48 ? `${hours}h` : `${Math.round(hours / 24)}d`;
@@ -424,18 +503,27 @@ function renderRecentlyPlayed(items) {
 
   const list = document.getElementById('recent-list');
   list.innerHTML = '';
-  for (const item of items) {
-    const art = item.track.album?.images?.[2]?.url || item.track.album?.images?.[0]?.url || '';
+  if (rows.length === 0) {
+    list.innerHTML = '<li class="empty">No plays in this period. Longer periods draw on your imported/tracked history from the Lifetime tab.</li>';
+    return;
+  }
+  for (const row of rows.slice(0, RECENT_LIST_CAP)) {
     const li = document.createElement('li');
     li.className = 'track-row';
     li.innerHTML = `
-      ${art ? `<img class="track-art" src="${art}" alt="">` : '<div class="track-art placeholder"></div>'}
+      ${row.art ? `<img class="track-art" src="${escapeAttr(row.art)}" alt="">` : '<div class="track-art placeholder"></div>'}
       <div class="track-meta">
-        <span class="track-title">${escapeHtml(item.track.name)}</span>
-        <span class="track-artist">${escapeHtml(item.track.artists.map((a) => a.name).join(', '))}</span>
+        ${linkHtml(row.title, row.url, 'track-title')}
+        ${linkHtml(row.artists, spotifySearchUrl(row.artists.split(',')[0].trim()), 'track-artist')}
       </div>
-      <span class="track-time">${new Date(item.played_at).toLocaleString()}</span>
+      <span class="track-time">${new Date(row.playedAt).toLocaleString()}</span>
     `;
+    list.appendChild(li);
+  }
+  if (rows.length > RECENT_LIST_CAP) {
+    const li = document.createElement('li');
+    li.className = 'empty';
+    li.textContent = `Showing the ${RECENT_LIST_CAP} most recent of ${rows.length.toLocaleString()} plays — the charts above cover all of them.`;
     list.appendChild(li);
   }
 }
@@ -458,10 +546,14 @@ function renderTopTracks(items) {
     li.className = 'track-row';
     li.innerHTML = `
       <span class="rank">${index + 1}</span>
-      ${art ? `<img class="track-art" src="${art}" alt="">` : '<div class="track-art placeholder"></div>'}
+      ${art ? `<img class="track-art" src="${escapeAttr(art)}" alt="">` : '<div class="track-art placeholder"></div>'}
       <div class="track-meta">
-        <span class="track-title">${escapeHtml(track.name)}</span>
-        <span class="track-artist">${escapeHtml(track.artists.map((a) => a.name).join(', '))}</span>
+        ${linkHtml(track.name, track.external_urls?.spotify, 'track-title')}
+        ${linkHtml(
+          track.artists.map((a) => a.name).join(', '),
+          track.artists[0]?.external_urls?.spotify || spotifySearchUrl(track.artists[0]?.name || ''),
+          'track-artist',
+        )}
       </div>
       <span class="track-popularity" title="Popularity">${track.popularity}</span>
     `;
@@ -487,15 +579,72 @@ function renderTopArtists(items) {
     li.className = 'artist-row';
     li.innerHTML = `
       <span class="rank">${index + 1}</span>
-      ${art ? `<img class="artist-art" src="${art}" alt="">` : '<div class="artist-art placeholder"></div>'}
+      ${art ? `<img class="artist-art" src="${escapeAttr(art)}" alt="">` : '<div class="artist-art placeholder"></div>'}
       <div class="artist-meta">
-        <span class="artist-name">${escapeHtml(artist.name)}</span>
-        <span class="artist-genres">${escapeHtml(artist.genres.slice(0, 3).join(', '))}</span>
+        ${linkHtml(artist.name, artist.external_urls?.spotify, 'artist-name')}
+        <span class="artist-genres" title="${escapeAttr(artist.genres.join(', '))}">${escapeHtml(artist.genres.slice(0, 3).join(', '))}</span>
       </div>
       <span class="track-popularity" title="Popularity">${artist.popularity}</span>
     `;
     list.appendChild(li);
   });
+}
+
+// ------------------------------------------------------------- playlists
+
+async function loadPlaylists(force = false) {
+  if (cache.playlists && !force) return renderPlaylists(cache.playlists);
+  await withLoading(async () => {
+    try {
+      const playlists = await api.getAllPlaylists();
+      cache.playlists = playlists;
+      els.playlistsScopeNote.classList.add('hidden');
+      renderPlaylists(playlists);
+    } catch (err) {
+      if (String(err.message).includes('403')) {
+        els.playlistsScopeNote.classList.remove('hidden');
+        els.playlistsContent.classList.add('hidden');
+      } else {
+        throw err;
+      }
+    }
+  }).catch(() => {});
+}
+
+function renderPlaylists(playlists) {
+  els.playlistsContent.classList.remove('hidden');
+
+  const totalTracks = playlists.reduce((sum, p) => sum + (p.tracks?.total || 0), 0);
+  const owned = playlists.filter((p) => p.owner?.id && p.owner.id !== 'spotify' && p.collaborative === false).length;
+  document.getElementById('playlists-count').textContent = playlists.length.toLocaleString();
+  document.getElementById('playlists-track-count').textContent = totalTracks.toLocaleString();
+  document.getElementById('playlists-owned-count').textContent = owned.toLocaleString();
+
+  const byUrl = new Map(playlists.map((p) => [p.name, p.external_urls?.spotify || '']));
+  const largest = [...playlists]
+    .sort((a, b) => (b.tracks?.total || 0) - (a.tracks?.total || 0))
+    .slice(0, 15)
+    .map((p) => ({ label: p.name, value: p.tracks?.total || 0 }));
+  renderBarList(document.getElementById('playlists-chart'), largest, {
+    linkFor: (item) => byUrl.get(item.label) || null,
+  });
+
+  const list = document.getElementById('playlists-list');
+  list.innerHTML = '';
+  for (const playlist of playlists) {
+    const art = playlist.images?.[playlist.images.length - 1]?.url || '';
+    const li = document.createElement('li');
+    li.className = 'track-row';
+    li.innerHTML = `
+      ${art ? `<img class="track-art" src="${escapeAttr(art)}" alt="">` : '<div class="track-art placeholder"></div>'}
+      <div class="track-meta">
+        ${linkHtml(playlist.name, playlist.external_urls?.spotify, 'track-title')}
+        <span class="track-artist">${escapeHtml(playlist.owner?.display_name || '')}${playlist.collaborative ? ' · collaborative' : ''}${playlist.public === false ? ' · private' : ''}</span>
+      </div>
+      <span class="track-time">${(playlist.tracks?.total || 0).toLocaleString()} tracks</span>
+    `;
+    list.appendChild(li);
+  }
 }
 
 async function ensureMediumTermTopTracks() {
@@ -560,7 +709,20 @@ function renderAudioFeatures(features) {
   `;
 }
 
-async function loadGenres(force = false) {
+const GENRE_HINTS = {
+  recent: 'Derived from the genres of your top artists (last 6 months). Value = how many of your top 50 artists carry the genre.',
+  lifetime: 'Your all-time top artists (from imported/tracked history) matched to Spotify\'s genre data, weighted by minutes listened. Genre data comes from Spotify\'s artist records — your export file doesn\'t contain genres.',
+};
+
+function loadGenres(force = false) {
+  const source = els.genresSourceSelect.value;
+  els.genresHint.textContent = GENRE_HINTS[source];
+  els.genresStatus.classList.add('hidden');
+  if (source === 'lifetime') return loadLifetimeGenres(force);
+  return loadRecentGenres(force);
+}
+
+async function loadRecentGenres(force = false) {
   if (cache.genres && !force) return renderGenres(cache.genres);
   await withLoading(async () => {
     const artists = await ensureMediumTermTopArtists();
@@ -576,9 +738,79 @@ async function loadGenres(force = false) {
   }).catch(() => {});
 }
 
-function renderGenres(sorted) {
+function renderGenres(sorted, formatValue) {
   const items = sorted.map(([genre, count]) => ({ label: genre, value: count }));
-  renderBarList(document.getElementById('genres-chart'), items);
+  renderBarList(document.getElementById('genres-chart'), items, {
+    formatValue,
+    linkFor: (item) => spotifySearchUrl(item.label),
+  });
+}
+
+const LIFETIME_GENRE_ARTISTS = 50;
+
+// The streaming-history export has no genre field, so genres for lifetime
+// stats are resolved by looking up the top artists via Spotify's search API
+// (cached in IndexedDB) and weighting each artist's genres by minutes played.
+async function loadLifetimeGenres(force = false) {
+  if (cache.lifetimeGenres && !force) {
+    return renderGenres(cache.lifetimeGenres, (v) => `${v.toLocaleString()}m`);
+  }
+
+  const plays = await store.getPlays();
+  if (!plays.length) {
+    document.getElementById('genres-chart').innerHTML =
+      '<p class="empty">No lifetime data yet — import your Extended Streaming History or enable tracking on the Lifetime tab first.</p>';
+    return;
+  }
+
+  const topArtists = lifetime.artistTotals(plays).slice(0, LIFETIME_GENRE_ARTISTS);
+  const genreCache = await store.getArtistGenreCache();
+  const unresolved = topArtists.filter(({ name }) => !genreCache[name]);
+
+  els.genresStatus.classList.remove('hidden');
+
+  let resolvedCount = 0;
+  let rateLimited = false;
+  for (const { name } of unresolved) {
+    els.genresStatus.textContent =
+      `Matching your top artists to Spotify's genre data (${resolvedCount}/${unresolved.length})… this happens once and is then cached.`;
+    try {
+      const hit = await api.searchArtist(name);
+      genreCache[name] = { genres: hit?.genres || [] };
+      resolvedCount++;
+    } catch (err) {
+      if (String(err.message).includes('Rate limited')) {
+        rateLimited = true;
+        break;
+      }
+      genreCache[name] = { genres: [] };
+    }
+  }
+  await store.setArtistGenreCache(genreCache);
+
+  const minutesByGenre = new Map();
+  for (const { name, ms } of topArtists) {
+    for (const genre of genreCache[name]?.genres || []) {
+      minutesByGenre.set(genre, (minutesByGenre.get(genre) || 0) + ms);
+    }
+  }
+  const sorted = [...minutesByGenre.entries()]
+    .map(([genre, ms]) => [genre, Math.round(ms / 60_000)])
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 15);
+
+  els.genresStatus.textContent = rateLimited
+    ? 'Spotify rate-limited the lookups — showing what resolved so far. Revisit this tab in a minute to finish (progress is cached).'
+    : `Based on your top ${topArtists.length} all-time artists, weighted by minutes listened.`;
+
+  if (!sorted.length) {
+    document.getElementById('genres-chart').innerHTML =
+      '<p class="empty">Couldn\'t resolve genre data for these artists yet.</p>';
+    return;
+  }
+
+  if (!rateLimited) cache.lifetimeGenres = sorted;
+  renderGenres(sorted, (v) => `${v.toLocaleString()}m`);
 }
 
 async function loadUserProfile() {
@@ -602,8 +834,11 @@ function initApp() {
   });
 
   els.refreshRecent.addEventListener('click', () => loadRecentlyPlayed(true));
+  els.recentPeriodSelect.addEventListener('change', () => loadRecentlyPlayed(true));
   els.topTracksRange.addEventListener('change', () => loadTopTracks(els.topTracksRange.value));
   els.topArtistsRange.addEventListener('change', () => loadTopArtists(els.topArtistsRange.value));
+  els.refreshPlaylists.addEventListener('click', () => loadPlaylists(true));
+  els.genresSourceSelect.addEventListener('change', () => loadGenres());
 
   els.importButton.addEventListener('click', handleImport);
   els.trackingToggle.addEventListener('click', toggleTracking);

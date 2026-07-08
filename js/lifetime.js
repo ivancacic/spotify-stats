@@ -124,6 +124,17 @@ export function filterPlays(plays, fromTs, toTs) {
   });
 }
 
+// All artists in the stored history, sorted by listening time.
+export function artistTotals(plays) {
+  const totals = new Map();
+  for (const play of plays) {
+    totals.set(play.artistName, (totals.get(play.artistName) || 0) + (play.msPlayed || 0));
+  }
+  return [...totals.entries()]
+    .map(([name, ms]) => ({ name, ms }))
+    .sort((a, b) => b.ms - a.ms);
+}
+
 export function distinctYears(plays) {
   const years = new Set();
   for (const play of plays) {

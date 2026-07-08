@@ -56,6 +56,27 @@ export function getTopArtists(timeRange = 'medium_term', limit = 50) {
   return apiFetch('/me/top/artists', { time_range: timeRange, limit });
 }
 
+// Fetches every playlist the user follows or owns (paginated, capped at 250).
+export async function getAllPlaylists() {
+  const playlists = [];
+  let offset = 0;
+  while (playlists.length < 250) {
+    const page = await apiFetch('/me/playlists', { limit: 50, offset });
+    playlists.push(...(page.items || []).filter(Boolean));
+    if (!page.next) break;
+    offset += 50;
+  }
+  return playlists;
+}
+
+// Best-effort artist lookup by name; returns the top search hit or null.
+export async function searchArtist(name) {
+  const data = await apiFetch('/search', { q: name, type: 'artist', limit: 1 });
+  const hit = data?.artists?.items?.[0];
+  if (!hit) return null;
+  return { name: hit.name, genres: hit.genres || [], url: hit.external_urls?.spotify || '' };
+}
+
 export async function getAudioFeaturesForTracks(trackIds) {
   const ids = trackIds.filter(Boolean);
   if (ids.length === 0) return [];

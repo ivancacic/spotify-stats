@@ -41,8 +41,12 @@ you registered in the Spotify dashboard (including trailing slashes/paths).
 
 1. Paste your Client ID into the app.
 2. Click **Connect with Spotify** and authorize the requested scopes
-   (`user-read-recently-played`, `user-top-read`, `user-read-private`).
+   (`user-read-recently-played`, `user-top-read`, `user-read-private`,
+   `playlist-read-private`, `playlist-read-collaborative`).
 3. You'll be redirected back and the dashboard will load.
+
+If you logged in before the Playlists tab existed, log out and reconnect
+once so your token picks up the playlist scopes.
 
 Tokens are stored in `localStorage` in your browser only — nothing is sent
 anywhere except directly to Spotify's API.

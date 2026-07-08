@@ -597,6 +597,28 @@ a {
   max-width: 100%;
 }
 
+/* ---------------------------------------------------------------- links */
+
+.entity-link {
+  color: inherit;
+  text-decoration: none;
+}
+
+.entity-link:hover {
+  color: var(--series);
+  text-decoration: underline;
+}
+
+a.viz-bar-label {
+  color: var(--ink-secondary);
+  text-decoration: none;
+}
+
+a.viz-bar-label:hover {
+  color: var(--series);
+  text-decoration: underline;
+}
+
 /* ------------------------------------------------------- track/artist */
 
 .track-list,
