@@ -459,9 +459,50 @@ function normalizeStoredRow(play) {
     title: play.trackName,
     artists: play.artistName,
     playedAt: play.ts,
-    art: '',
+    art: play.artUrl || '',
+    uri: play.trackUri || '',
     url: spotifyUrlFromUri(play.trackUri) || spotifySearchUrl(`${play.trackName} ${play.artistName}`),
   };
+}
+
+function trackIdFromUri(uri) {
+  const parts = (uri || '').split(':');
+  return parts.length === 3 && parts[0] === 'spotify' && parts[1] === 'track' ? parts[2] : '';
+}
+
+// History rows carry no artwork (the export doesn't include it), so resolve
+// album art for the rows being shown via the batch /tracks API, cached in
+// IndexedDB. Art is cosmetic: any failure here just leaves placeholders.
+async function hydrateArtwork(rows) {
+  try {
+    const visible = rows.slice(0, RECENT_LIST_CAP);
+    const artCache = await store.getTrackArtCache();
+
+    for (const row of visible) {
+      const id = trackIdFromUri(row.uri);
+      if (!row.art && id && artCache[id] !== undefined) row.art = artCache[id];
+    }
+
+    const missingIds = [...new Set(
+      visible.filter((row) => !row.art).map((row) => trackIdFromUri(row.uri)).filter(Boolean),
+    )].filter((id) => artCache[id] === undefined);
+
+    if (missingIds.length > 0) {
+      const tracks = await api.getTracksByIds(missingIds);
+      const byId = new Map(tracks.map((t) => [
+        t.id,
+        t.album?.images?.[2]?.url || t.album?.images?.[0]?.url || '',
+      ]));
+      for (const id of missingIds) artCache[id] = byId.get(id) ?? '';
+      await store.setTrackArtCache(artCache);
+      for (const row of visible) {
+        const id = trackIdFromUri(row.uri);
+        if (!row.art && id) row.art = artCache[id] || '';
+      }
+    }
+  } catch {
+    // leave placeholders
+  }
 }
 
 async function loadRecentlyPlayed(force = false) {
@@ -480,13 +521,17 @@ async function loadRecentlyPlayed(force = false) {
 
   const days = Number(mode);
   const cutoff = Date.now() - days * 86_400_000;
-  const plays = (await store.getPlays())
-    .filter((play) => {
-      const time = new Date(play.ts).getTime();
-      return !Number.isNaN(time) && time >= cutoff;
-    })
-    .sort((a, b) => new Date(b.ts) - new Date(a.ts));
-  renderRecentlyPlayed(plays.map(normalizeStoredRow));
+  await withLoading(async () => {
+    const plays = (await store.getPlays())
+      .filter((play) => {
+        const time = new Date(play.ts).getTime();
+        return !Number.isNaN(time) && time >= cutoff;
+      })
+      .sort((a, b) => new Date(b.ts) - new Date(a.ts));
+    const rows = plays.map(normalizeStoredRow);
+    await hydrateArtwork(rows);
+    renderRecentlyPlayed(rows);
+  }).catch(() => {});
 }
 
 const RECENT_LIST_CAP = 300;

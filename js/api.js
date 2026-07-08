@@ -69,6 +69,18 @@ export async function getAllPlaylists() {
   return playlists;
 }
 
+// Batch track lookup (50 ids per request).
+export async function getTracksByIds(trackIds) {
+  const ids = trackIds.filter(Boolean);
+  if (ids.length === 0) return [];
+  const chunks = [];
+  for (let i = 0; i < ids.length; i += 50) chunks.push(ids.slice(i, i + 50));
+  const results = await Promise.all(
+    chunks.map((chunk) => apiFetch('/tracks', { ids: chunk.join(',') })),
+  );
+  return results.flatMap((r) => r?.tracks || []).filter(Boolean);
+}
+
 // Best-effort artist lookup by name; returns the top search hit or null.
 export async function searchArtist(name) {
   const data = await apiFetch('/search', { q: name, type: 'artist', limit: 1 });

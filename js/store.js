@@ -49,6 +49,16 @@ export function setMeta(meta) {
   return set('meta', meta);
 }
 
+// Cache of track id -> album art URL, resolved via the batch /tracks API
+// for history rows (the streaming export has no artwork).
+export async function getTrackArtCache() {
+  return (await get('trackArt')) || {};
+}
+
+export function setTrackArtCache(cache) {
+  return set('trackArt', cache);
+}
+
 // Cache of artist name -> { genres, url } resolved via the Spotify search
 // API, so lifetime genre stats don't re-query the same artists every visit.
 export async function getArtistGenreCache() {

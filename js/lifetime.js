@@ -46,6 +46,7 @@ function normalizeLiveItem(item) {
     artistName: item.track?.artists?.[0]?.name || 'Unknown artist',
     albumName: item.track?.album?.name || '',
     trackUri: item.track?.uri || '',
+    artUrl: item.track?.album?.images?.[2]?.url || item.track?.album?.images?.[0]?.url || '',
     source: 'live',
   };
 }
